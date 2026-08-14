@@ -77,6 +77,7 @@ export function formatReport(report: ReportData): string {
     `  ${report.comparison} (lifetime low end)`,
     "",
     `  ${report.caveat}`,
+    `  ${report.tokenAccounting}`,
     `  ${report.citation}`,
     "  Totals are per-machine. Logs are local-only; a second computer is a separate total.",
   ];
@@ -108,6 +109,7 @@ export function reportToJson(report: ReportData): unknown {
     })),
     comparison: report.comparison,
     caveat: report.caveat,
+    token_accounting: report.tokenAccounting,
     citation: report.citation,
     warnings: report.warnings,
   };

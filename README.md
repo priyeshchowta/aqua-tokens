@@ -56,15 +56,23 @@ npx tsx src/cli.ts report
 aqua-tokens report           # default: scope-1+2 (cooling + electricity generation)
 aqua-tokens report --scope1  # conservative on-site cooling only
 aqua-tokens report --json
+aqua-tokens otel-poc --print-config
+aqua-tokens otel-poc --listen
 ```
 
 `--scope1` is the Google / Altman on-site-cooling band (~0.26–0.32 mL per ~1,000-token query). It is labeled as an undercount.
 
+Claude Code OpenTelemetry is a **local proof of concept** (`aqua-tokens otel-poc --listen`). It does not require an Aqua server. `report` still reads JSONL until a live `api_request` event is compared to Claude's usage display. Details: `docs/usage-sources.md`.
+
 ## What is counted
 
-Water is applied to **input + output tokens combined**. Cache-read / cache-write tokens are parsed when present but **not** folded into the water total — the paper's 500–2,500 token query band is about the query itself, and treating a 200k cache hit as 80 extra queries would invent a number the methodology does not support.
+Water is applied to **API-request input + output tokens only**. Cache-read / cache-write tokens are parsed when present but **not** folded into the water total — the paper's 500–2,500 token query band is about the query itself, and treating a 200k cache hit as 80 extra queries would invent a number the methodology does not support.
 
-Claude Code totals can be checked against the usage block in `~/.claude/projects/**/*.jsonl` (`message.usage.input_tokens` + `output_tokens`). Cursor totals come from per-bubble `tokenCount` in `state.vscdb` when Cursor actually stored it; many sessions omit tokens locally, in which case the report warns and undercounts rather than guessing from character length.
+The report therefore does **not** call this "total AI token usage" or "billed tokens". Every report includes the accounting caveat from `water-methodology.json`.
+
+Claude Code totals currently come from `~/.claude/projects/**/*.jsonl` (`message.usage.input_tokens` + `output_tokens`). OpenTelemetry `claude_code.api_request` is a local POC (`aqua-tokens otel-poc`) and is not yet the report source — see `docs/usage-sources.md`. Do not treat Claude Code statusline `total_input_tokens` / `total_output_tokens` as cumulative usage; those are context-window fields.
+
+Cursor totals come from per-bubble `tokenCount` in `state.vscdb` when Cursor actually stored it. On current desktop builds that object is present but unused (every bubble on the development machine was `{ inputTokens: 0, outputTokens: 0 }`, including mid-chat); agent transcripts have no `usage` block either. Real Cursor billing lives on their servers (Settings → Usage / CSV). The report then warns that a **zero Cursor total is not proof that no usage occurred**, and does not guess from character length or from context-window fields like `contextTokensUsed`.
 
 ## Log locations (per OS)
 
@@ -88,7 +96,7 @@ If a log file exists but does not match the expected schema, the CLI **exits wit
 
 ## Totals are per-machine
 
-Storage is local (`~/.aqua-tokens/history.sqlite`). Using Claude Code or Cursor on a laptop and a desktop produces two separate lifetimes. That is by design, not a sync bug.
+Storage is local (`~/.aqua-tokens/history.sqlite`). Using Claude Code or Cursor on a laptop and a desktop produces two separate lifetimes. That is by design, not a sync bug. The store is insert-if-new: re-running `report` does not double-count.
 
 ## Methodology
 
@@ -129,4 +137,6 @@ No hosted dashboard, accounts, leaderboard, shareable public URL, browser extens
 ```bash
 npm test
 npm run build
+npx tsx src/cli.ts report
+npx tsx src/cli.ts otel-poc --file tests/fixtures/otel/api-request.json
 ```

@@ -69,3 +69,8 @@ export function cursorAgentTranscriptDir(ctx: PathEnv = currentPathEnv()): strin
 export function defaultStorePath(ctx: PathEnv = currentPathEnv()): string {
   return path.join(homeDir(ctx), ".aqua-tokens", "history.sqlite");
 }
+
+/** JSONL capture from the local OTLP POC receiver. Loopback only. */
+export function defaultOtelPocPath(ctx: PathEnv = currentPathEnv()): string {
+  return path.join(homeDir(ctx), ".aqua-tokens", "otel-poc.jsonl");
+}

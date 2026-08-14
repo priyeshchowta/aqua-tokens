@@ -6,7 +6,14 @@ import { DatabaseSync } from "node:sqlite";
 import { UnrecognizedLogFormatError } from "../errors.js";
 import { asNonNegInt, isPlainObject, readJsonl } from "../jsonl.js";
 import { cursorAgentTranscriptDir, cursorStateDbCandidates } from "../paths.js";
+import { makeUsageEvent } from "../usage-event.js";
 import type { ParseResult, ParseWarning, UsageEvent } from "../types.js";
+
+export const CURSOR_BILLED_USAGE_UNAVAILABLE =
+  "Cursor local billed usage is unavailable. A zero Cursor total is not proof that no usage occurred — Cursor does not persist billed input/output locally on current desktop builds. Refusing to guess from character counts or from context-window fields (contextTokensUsed, promptTokenBreakdown).";
+
+export const CURSOR_TOKENCOUNT_ALWAYS_ZERO =
+  "Cursor local DB was readable and tokenCount was present, but every stored value was 0. That is not proof that no usage occurred. Local billed Cursor tokens are unavailable; do not treat this total as a Cursor usage UI figure.";
 
 export interface CursorParseOptions {
   dbPaths?: string[];
@@ -37,11 +44,10 @@ export async function parseCursor(options: CursorParseOptions = {}): Promise<Par
 
   if (dbPaths.length > 0) {
     const dbTokenEvents = events.filter((e) => e.sourceFile.endsWith("state.vscdb"));
-    if (dbTokenEvents.length === 0) {
+    if (dbTokenEvents.length === 0 && !warnings.some((w) => w.platform === "cursor")) {
       warnings.push({
         platform: "cursor",
-        message:
-          "Cursor local DB was readable but contained no per-turn token counts. Totals are a lower bound — Cursor often omits tokens from local storage. Refusing to guess from character counts.",
+        message: CURSOR_BILLED_USAGE_UNAVAILABLE,
       });
     }
   }
@@ -108,6 +114,9 @@ function readCursorSnapshot(snapshotPath: string, originalPath: string): ParseRe
 
     const events: UsageEvent[] = [];
     const seen = new Set<string>();
+    const warnings: ParseWarning[] = [];
+    let tokenCountPresent = 0;
+    let tokenCountNonZero = 0;
     const getBubble = db.prepare(`SELECT value FROM cursorDiskKV WHERE key = ?`);
 
     for (const row of composerRows) {
@@ -125,7 +134,7 @@ function readCursorSnapshot(snapshotPath: string, originalPath: string): ParseRe
         const bubbleKey = `bubbleId:${composerId}:${bubbleId}`;
         const bubbleRow = getBubble.get(bubbleKey) as { value: unknown } | undefined;
         if (!bubbleRow) continue;
-        const event = eventFromBubble(
+        const extracted = eventFromBubble(
           bubbleRow.value,
           originalPath,
           bubbleKey,
@@ -133,9 +142,14 @@ function readCursorSnapshot(snapshotPath: string, originalPath: string): ParseRe
           bubbleId,
           composer.lastUpdatedAt ?? composer.createdAt,
         );
-        if (!event) continue;
-        seen.add(event.id);
-        events.push(event);
+        if (extracted.tokenCountPresent) tokenCountPresent += 1;
+        if (extracted.event) {
+          tokenCountNonZero += 1;
+          seen.add(extracted.event.id);
+          events.push(extracted.event);
+        } else {
+          seen.add(`cursor:${composerId}:${bubbleId}`);
+        }
       }
     }
 
@@ -150,7 +164,7 @@ function readCursorSnapshot(snapshotPath: string, originalPath: string): ParseRe
       }
       const id = `cursor:${parsedKey.composerId}:${parsedKey.bubbleId}`;
       if (seen.has(id)) continue;
-      const event = eventFromBubble(
+      const extracted = eventFromBubble(
         row.value,
         originalPath,
         key,
@@ -158,11 +172,17 @@ function readCursorSnapshot(snapshotPath: string, originalPath: string): ParseRe
         parsedKey.bubbleId,
         undefined,
       );
-      if (!event) continue;
-      events.push(event);
+      if (extracted.tokenCountPresent) tokenCountPresent += 1;
+      if (!extracted.event) continue;
+      tokenCountNonZero += 1;
+      events.push(extracted.event);
     }
 
-    return { events, warnings: [] };
+    if (tokenCountPresent > 0 && tokenCountNonZero === 0) {
+      warnings.push({ platform: "cursor", message: CURSOR_TOKENCOUNT_ALWAYS_ZERO });
+    }
+
+    return { events, warnings };
   } finally {
     db.close();
   }
@@ -203,19 +223,26 @@ function eventFromBubble(
   composerId: string,
   bubbleId: string,
   fallbackTs: unknown,
-): UsageEvent | null {
+): { event: UsageEvent | null; tokenCountPresent: boolean } {
   const bubble = parseJsonObject(value, originalPath, bubbleKey);
-  if (!looksLikeBubble(bubble)) return null;
+  if (!looksLikeBubble(bubble)) return { event: null, tokenCountPresent: false };
   const tokens = extractBubbleTokens(bubble, originalPath, bubbleKey);
-  if (!tokens) return null;
+  if (!tokens) return { event: null, tokenCountPresent: false };
+  if (tokens.input === 0 && tokens.output === 0) {
+    return { event: null, tokenCountPresent: true };
+  }
   return {
-    id: `cursor:${composerId}:${bubbleId}`,
-    platform: "cursor",
-    sessionId: composerId,
-    timestamp: parseCursorTimestamp(bubble.createdAt ?? fallbackTs),
-    inputTokens: tokens.input,
-    outputTokens: tokens.output,
-    sourceFile: originalPath,
+    tokenCountPresent: true,
+    event: makeUsageEvent({
+      id: `cursor:${composerId}:${bubbleId}`,
+      platform: "cursor",
+      sessionId: composerId,
+      timestamp: parseCursorTimestamp(bubble.createdAt ?? fallbackTs),
+      inputTokens: tokens.input,
+      outputTokens: tokens.output,
+      source: "cursor-db",
+      sourceFile: originalPath,
+    }),
   };
 }
 
@@ -264,7 +291,6 @@ function extractBubbleTokens(
       `${key} tokenCount is missing numeric inputTokens/outputTokens`,
     );
   }
-  if (input === 0 && output === 0) return null;
   return { input, output };
 }
 
@@ -337,15 +363,18 @@ export async function parseCursorTranscriptFile(
         : null);
     if (!usage) continue;
 
-    events.push({
-      id: `cursor-jsonl:${sessionId}:${line.lineNumber}`,
-      platform: "cursor",
-      sessionId,
-      timestamp: parseCursorTimestamp(line.value.timestamp ?? line.value.createdAt),
-      inputTokens: usage.input,
-      outputTokens: usage.output,
-      sourceFile: filePath,
-    });
+    events.push(
+      makeUsageEvent({
+        id: `cursor-jsonl:${sessionId}:${line.lineNumber}`,
+        platform: "cursor",
+        sessionId,
+        timestamp: parseCursorTimestamp(line.value.timestamp ?? line.value.createdAt),
+        inputTokens: usage.input,
+        outputTokens: usage.output,
+        source: "cursor-transcript",
+        sourceFile: filePath,
+      }),
+    );
   }
 
   if (jsonObjects > 0 && recognized === 0) {

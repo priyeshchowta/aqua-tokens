@@ -3,6 +3,7 @@ import path from "node:path";
 import { UnrecognizedLogFormatError } from "../errors.js";
 import { asNonNegInt, isPlainObject, readJsonl } from "../jsonl.js";
 import { claudeProjectDirs } from "../paths.js";
+import { makeUsageEvent } from "../usage-event.js";
 import type { ParseResult, UsageEvent } from "../types.js";
 
 /** Line types observed in Claude Code JSONL transcripts. Unknown types are tolerated only when the surrounding record still looks like Claude Code. */
@@ -152,6 +153,19 @@ function extractUsage(
     );
   }
 
+  const cacheRead = optionalCacheTokens(
+    usage.cache_read_input_tokens ?? usage.cache_read_tokens,
+    filePath,
+    lineNumber,
+    "cache_read",
+  );
+  const cacheCreation = optionalCacheTokens(
+    usage.cache_creation_input_tokens ?? usage.cache_creation_tokens,
+    filePath,
+    lineNumber,
+    "cache_creation",
+  );
+
   if (input === 0 && output === 0) return null;
 
   const timestamp = parseTimestamp(obj.timestamp ?? message.timestamp);
@@ -163,16 +177,48 @@ function extractUsage(
     (typeof message.id === "string" && message.id) ||
     (typeof obj.uuid === "string" && obj.uuid) ||
     `${filePath}:${lineNumber}`;
+  const requestId =
+    stringField(obj.requestId) ??
+    stringField(obj.request_id) ??
+    stringField(message.requestId) ??
+    stringField(message.request_id);
+  const model = stringField(message.model);
 
-  return {
+  return makeUsageEvent({
     id: `claude:${messageId}`,
     platform: "claude-code",
     sessionId,
+    requestId,
     timestamp,
+    model,
     inputTokens: input,
     outputTokens: output,
+    cacheReadTokens: cacheRead,
+    cacheCreationTokens: cacheCreation,
+    source: "claude-jsonl",
     sourceFile: filePath,
-  };
+  });
+}
+
+function stringField(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function optionalCacheTokens(
+  value: unknown,
+  filePath: string,
+  lineNumber: number,
+  label: string,
+): number {
+  if (value === undefined || value === null) return 0;
+  const parsed = asNonNegInt(value);
+  if (parsed === null) {
+    throw new UnrecognizedLogFormatError(
+      filePath,
+      `usage.${label} tokens are not numbers on line ${lineNumber}`,
+    );
+  }
+  return parsed;
 }
 
 function parseTimestamp(value: unknown): number {

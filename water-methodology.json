@@ -35,6 +35,14 @@
       ]
     }
   },
+  "token_accounting": {
+    "version": 1,
+    "counted": ["input_tokens", "output_tokens"],
+    "excluded": ["cache_read_tokens", "cache_creation_tokens"],
+    "label": "API request input + output (cache read/write excluded)",
+    "rationale": "Li et al. report 10–50 mL for a ~500–2,500 token inference query. That band describes the query itself, not prompt-cache hits. Counting cache_read_tokens would treat reused context as new work and double-count. Cache_creation_tokens are also outside the paper's query-size band, so v1 excludes them rather than silently widening the denominator. Aqua therefore reports request tokens it can defend, not 'total AI token usage' or billed tokens.",
+    "caveat": "Counted tokens are API-request input + output only. Cache reads and cache writes are recorded when present but excluded from water. This is not a billed-token total."
+  },
   "caveat": "Estimates vary 30x+ depending on scope, model version, query complexity, and data center location.",
   "citation": "Li, P., Yang, J., Islam, M.A., Ren, S. \"Making AI Less Thirsty: Uncovering and Addressing the Secret Water Footprint of AI Models.\" UC Riverside, 2023 / Commun. ACM 2024. https://arxiv.org/abs/2304.03271",
   "comparisons": {

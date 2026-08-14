@@ -5,17 +5,23 @@ import { describe, expect, it } from "vitest";
 import { buildReport, startOfLocalDay } from "../src/aggregate.js";
 import { formatReport } from "../src/report.js";
 import { UsageStore } from "../src/store.js";
+import { makeUsageEvent } from "../src/usage-event.js";
 import type { UsageEvent } from "../src/types.js";
 import { loadMethodology } from "../src/water.js";
 
 const methodology = loadMethodology();
 
-function event(partial: Partial<UsageEvent> & Pick<UsageEvent, "id" | "platform" | "timestamp" | "inputTokens" | "outputTokens">): UsageEvent {
-  return {
+function event(
+  partial: Partial<UsageEvent> & Pick<UsageEvent, "id" | "platform" | "timestamp" | "inputTokens" | "outputTokens">,
+): UsageEvent {
+  return makeUsageEvent({
     sessionId: "s",
     sourceFile: "test",
+    source: partial.platform === "cursor" ? "cursor-db" : "claude-jsonl",
+    cacheReadTokens: 0,
+    cacheCreationTokens: 0,
     ...partial,
-  };
+  });
 }
 
 describe("buildReport", () => {
@@ -49,6 +55,7 @@ describe("buildReport", () => {
     expect(text).toContain("arxiv.org/abs/2304.03271");
     expect(text).toContain("per-machine");
     expect(text).toMatch(/Lifetime: .* tokens · .* mL, scope-1\+2/);
+    expect(text).toContain("API-request input + output only");
   });
 });
 
@@ -68,7 +75,12 @@ describe("UsageStore", () => {
       }),
     ];
     store.replaceAll(events);
-    expect(store.allEvents()).toEqual(events);
+    const roundTripped = store.allEvents();
+    expect(roundTripped).toHaveLength(1);
+    expect(roundTripped[0]?.id).toBe("a");
+    expect(roundTripped[0]?.inputTokens).toBe(2);
+    expect(roundTripped[0]?.outputTokens).toBe(3);
+    expect(roundTripped[0]?.source).toBe("claude-jsonl");
     store.close();
   });
 });

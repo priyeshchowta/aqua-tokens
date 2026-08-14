@@ -2,13 +2,23 @@ export type Platform = "claude-code" | "cursor";
 
 export type ScopeId = "scope1" | "scope1plus2";
 
+/** Where a usage event was observed. Not interchangeable: JSONL, OTel, and Cursor DB mean different things. */
+export type UsageSource = "claude-jsonl" | "claude-otel" | "cursor-db" | "cursor-transcript";
+
 export interface UsageEvent {
+  /** Stable deduplication key. Reprocessing the same source must reuse this id. */
   id: string;
   platform: Platform;
   sessionId: string;
+  /** Anthropic API request id (`req_…`) when the source exposes one. */
+  requestId?: string;
   timestamp: number;
+  model?: string;
   inputTokens: number;
   outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
+  source: UsageSource;
   sourceFile: string;
 }
 
@@ -56,6 +66,7 @@ export interface ReportData {
   comparison: string;
   caveat: string;
   citation: string;
+  tokenAccounting: string;
   warnings: ParseWarning[];
   platformsScanned: Platform[];
 }
@@ -66,6 +77,15 @@ export interface MethodologyScope {
   description: string;
   ml_per_1000_tokens_low: number;
   ml_per_1000_tokens_high: number;
+}
+
+export interface TokenAccountingRule {
+  version: number;
+  counted: string[];
+  excluded: string[];
+  label: string;
+  rationale: string;
+  caveat: string;
 }
 
 export interface Methodology {
@@ -83,9 +103,16 @@ export interface Methodology {
     scope1plus2: MethodologyScope;
     scope1: MethodologyScope;
   };
+  token_accounting: TokenAccountingRule;
   caveat: string;
   citation: string;
   comparisons: {
     toilet_flush_ml: number;
   };
+}
+
+export interface IngestStats {
+  inserted: number;
+  ignored: number;
+  skipped: number;
 }

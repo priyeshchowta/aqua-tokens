@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Methodology, ScopeId, WaterRange } from "./types.js";
+import type { Methodology, ScopeId, TokenAccountingRule, WaterRange } from "./types.js";
 
 function packageRoot(): string {
   return path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -26,9 +26,25 @@ function isPlainMethodology(value: unknown): value is Methodology {
   return (
     typeof v.caveat === "string" &&
     typeof v.citation === "string" &&
+    isTokenAccounting(v.token_accounting) &&
     isScope(v.scopes?.scope1plus2) &&
     isScope(v.scopes?.scope1) &&
     isFiniteNumber(v.comparisons?.toilet_flush_ml)
+  );
+}
+
+function isTokenAccounting(value: unknown): value is TokenAccountingRule {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as TokenAccountingRule;
+  return (
+    typeof v.version === "number" &&
+    Array.isArray(v.counted) &&
+    v.counted.every((item) => typeof item === "string") &&
+    Array.isArray(v.excluded) &&
+    v.excluded.every((item) => typeof item === "string") &&
+    typeof v.label === "string" &&
+    typeof v.rationale === "string" &&
+    typeof v.caveat === "string"
   );
 }
 

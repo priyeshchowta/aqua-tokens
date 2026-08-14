@@ -156,4 +156,20 @@ describe("parseCursor", () => {
     const tokens = result.events.reduce((n, e) => n + e.inputTokens + e.outputTokens, 0);
     expect(tokens).toBe(15);
   });
+
+  it("warns that all-zero tokenCount is not proof of no usage", async () => {
+    const dbPath = makeDb([
+      {
+        key: "composerData:c-zero",
+        value: { fullConversationHeadersOnly: [{ bubbleId: "b1" }] },
+      },
+      {
+        key: "bubbleId:c-zero:b1",
+        value: { type: 2, tokenCount: { inputTokens: 0, outputTokens: 0 } },
+      },
+    ]);
+    const result = await parseCursor({ dbPaths: [dbPath], transcriptRoots: [] });
+    expect(result.events).toHaveLength(0);
+    expect(result.warnings.some((w) => /not proof that no usage occurred/i.test(w.message))).toBe(true);
+  });
 });

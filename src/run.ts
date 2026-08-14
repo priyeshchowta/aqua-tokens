@@ -4,7 +4,7 @@ import { parseCursor } from "./parsers/cursor.js";
 import { claudeProjectDirs, cursorStateDbCandidates, defaultStorePath } from "./paths.js";
 import { UsageStore } from "./store.js";
 import { buildReport } from "./aggregate.js";
-import type { ParseResult, Platform, ReportData, ScopeId, UsageEvent } from "./types.js";
+import type { ParseResult, Platform, ReportData, ScopeId } from "./types.js";
 import { loadMethodology } from "./water.js";
 
 export interface GenerateReportOptions {
@@ -27,27 +27,27 @@ export async function generateReport(options: GenerateReportOptions = {}): Promi
     transcriptRoots: options.cursorTranscriptRoots,
   });
 
-  const events: UsageEvent[] = [...claude.events, ...cursor.events];
   const store = new UsageStore(options.storePath ?? defaultStorePath());
   try {
-    store.replaceAll(events);
+    store.ingest([...claude.events, ...cursor.events]);
+    const events = store.allEvents();
+
+    const platformsScanned: Platform[] = [];
+    const claudeRoots = options.claudeRoots ?? claudeProjectDirs();
+    if (claudeRoots.some((root) => existsSync(root))) platformsScanned.push("claude-code");
+    const cursorDbs = options.cursorDbPaths ?? cursorStateDbCandidates();
+    if (cursorDbs.some((p) => existsSync(p))) platformsScanned.push("cursor");
+
+    return buildReport(events, {
+      scope,
+      methodology,
+      now: options.now,
+      warnings: [...claude.warnings, ...cursor.warnings],
+      platformsScanned,
+    });
   } finally {
     store.close();
   }
-
-  const platformsScanned: Platform[] = [];
-  const claudeRoots = options.claudeRoots ?? claudeProjectDirs();
-  if (claudeRoots.some((root) => existsSync(root))) platformsScanned.push("claude-code");
-  const cursorDbs = options.cursorDbPaths ?? cursorStateDbCandidates();
-  if (cursorDbs.some((p) => existsSync(p))) platformsScanned.push("cursor");
-
-  return buildReport(events, {
-    scope,
-    methodology,
-    now: options.now,
-    warnings: [...claude.warnings, ...cursor.warnings],
-    platformsScanned,
-  });
 }
 
 export type { ParseResult };

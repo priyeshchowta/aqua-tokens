@@ -1,3 +1,4 @@
+import { countedTokens } from "./accounting.js";
 import type { Methodology, Platform, ReportData, ReportRow, ScopeId, UsageEvent } from "./types.js";
 import { tokensToWater, toiletFlushComparison } from "./water.js";
 
@@ -22,7 +23,7 @@ export function sumTokens(events: UsageEvent[]): { tokens: number; inputTokens: 
     inputTokens += event.inputTokens;
     outputTokens += event.outputTokens;
   }
-  return { tokens: inputTokens + outputTokens, inputTokens, outputTokens };
+  return { tokens: countedTokens({ inputTokens, outputTokens }), inputTokens, outputTokens };
 }
 
 export function buildReport(
@@ -72,6 +73,7 @@ export function buildReport(
     comparison: toiletFlushComparison(lifetimeWater.lowMl, methodology),
     caveat: methodology.caveat,
     citation: methodology.citation,
+    tokenAccounting: methodology.token_accounting.caveat,
     warnings: options.warnings ?? [],
     platformsScanned: options.platformsScanned ?? PLATFORMS,
   };

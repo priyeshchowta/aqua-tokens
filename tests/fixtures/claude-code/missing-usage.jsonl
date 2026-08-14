@@ -1,0 +1,2 @@
+{"type":"assistant","sessionId":"sess-missing","timestamp":"2026-08-14T10:00:01.000Z","message":{"id":"msg_nousage","role":"assistant","model":"claude-sonnet-4-6","content":[{"type":"text","text":"no usage"}]}}
+{"type":"user","sessionId":"sess-missing","timestamp":"2026-08-14T10:00:00.000Z","message":{"role":"user","content":"hi"}}

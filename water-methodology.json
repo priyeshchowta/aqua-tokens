@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "default_scope": "scope1plus2",
+  "interpolation": {
+    "note": "Li et al. report 10–50 mL for a ~500–2,500 token inference query. Their MIT-licensed notebooks operate at datacenter-hour / training-run granularity (power × on-site WUE + off-site EWIF × PUE), not per token. The rates below are aqua-tokens' linear interpolation onto a 1,000-token reference (the midpoint of that query-size band), not a value the paper states directly. 1.2M tokens × 10–50 mL / 1,000 tokens = 12–60 L.",
+    "paper_query_ml_low": 10,
+    "paper_query_ml_high": 50,
+    "paper_query_tokens_low": 500,
+    "paper_query_tokens_high": 2500,
+    "reference_tokens": 1000
+  },
+  "scopes": {
+    "scope1plus2": {
+      "id": "scope-1+2",
+      "label": "scope-1+2",
+      "description": "On-site cooling plus electricity-generation water. Default: this is the range that matters.",
+      "ml_per_1000_tokens_low": 10,
+      "ml_per_1000_tokens_high": 50,
+      "sources": [
+        "Li, P., Yang, J., Islam, M.A., Ren, S. Making AI Less Thirsty. UC Riverside, 2023 / Commun. ACM 2024. arXiv:2304.03271. 10–50 mL per ~500–2,500 token query; power-plant water can be up to 75% of the total."
+      ]
+    },
+    "scope1": {
+      "id": "scope-1",
+      "label": "scope-1",
+      "description": "On-site cooling only. Conservative undercount: excludes electricity-generation water.",
+      "ml_per_query_low": 0.26,
+      "ml_per_query_high": 0.32,
+      "assumed_tokens_per_query": 1000,
+      "ml_per_1000_tokens_low": 0.26,
+      "ml_per_1000_tokens_high": 0.32,
+      "sources": [
+        "Google 2025 Environmental Report (median Gemini prompt, on-site cooling).",
+        "Sam Altman, June 2025 disclosure (ChatGPT, on-site cooling)."
+      ]
+    }
+  },
+  "caveat": "Estimates vary 30x+ depending on scope, model version, query complexity, and data center location.",
+  "citation": "Li, P., Yang, J., Islam, M.A., Ren, S. \"Making AI Less Thirsty: Uncovering and Addressing the Secret Water Footprint of AI Models.\" UC Riverside, 2023 / Commun. ACM 2024. https://arxiv.org/abs/2304.03271",
+  "comparisons": {
+    "toilet_flush_ml": 6000
+  }
+}

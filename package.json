@@ -1,0 +1,42 @@
+{
+  "name": "aqua-tokens",
+  "version": "1.0.0",
+  "description": "Local CLI that converts Claude Code and Cursor token logs into an estimated water-consumption range",
+  "type": "module",
+  "bin": {
+    "aqua-tokens": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "water-methodology.json",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "keywords": [
+    "cli",
+    "tokens",
+    "water",
+    "claude-code",
+    "cursor"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,10 @@
+This project reviewed, but did not copy, the MIT-licensed notebooks at
+https://github.com/Ren-Research/Making-AI-Less-Thirsty (Copyright (c) 2023
+Ren-Research). Those notebooks compute training-run water from hourly
+datacenter WUE/PUE and EIA fuel mix — they do not expose a per-token formula —
+so aqua-tokens does not include their source. The conversion rates live in
+water-methodology.json as a labeled interpolation from the published paper,
+not a port of that code.
+
+If a future version ports their calculation, the MIT copyright notice from
+Ren-Research must be reproduced here in full.

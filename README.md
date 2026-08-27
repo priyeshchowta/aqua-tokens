@@ -1,12 +1,8 @@
 # aqua-tokens
 
-Local CLI that tracks **Claude Code** usage on your machine and converts the measured usage into an estimated **water-footprint range**.
+A local-first CLI that tracks **available Claude Code usage data** and converts **counted request tokens** into an estimated **water-footprint range**.
 
-No Aqua server. No Aqua account. No hosted dashboard. History stays in `~/.aqua-tokens/history.sqlite`.
-
-## Why it exists
-
-Token trackers show usage but not water. Water estimators often invent a single constant without reading real logs. Aqua reads **local Claude Code usage** (when available) and converts **request tokens counted by Aqua** into a **labeled range** with methodology caveat and citation — not a viral point estimate.
+No Aqua server. No Aqua account. No hosted dashboard. History stays on your machine in `~/.aqua-tokens/history.sqlite`.
 
 ```
 $ aqua-tokens report
@@ -21,11 +17,21 @@ $ aqua-tokens report
   All-time      1.2M  12–60 L
 ```
 
+## Why it exists
+
+Token trackers can show usage without translating it into environmental impact. Many water-footprint estimates rely on generalized assumptions rather than the user's actual AI usage.
+
+Aqua attempts to connect **locally available Claude Code usage data** with a **transparent water-footprint range**, including methodology caveat and citation. It intentionally exposes uncertainty: Aqua does **not** use a viral point estimate.
+
 ## What it does
 
-Claude Code usage → request tokens counted by Aqua → water range (with caveat and citation).
+Available Claude Code usage → request tokens counted by Aqua → estimated water range (with caveat and citation).
 
-Aqua reports **request tokens counted by Aqua** (`input_tokens + output_tokens`), not a billed invoice total and not “every token the model processed.” Cache read/write fields are stored when present but excluded from water.
+Aqua reports **request tokens counted by Aqua** (`input_tokens + output_tokens`), not a billed invoice total and not “every token the model processed.”
+
+- Cache read/write fields may be stored when present.
+- They are **currently excluded** from the water calculation.
+- Aqua does **not** claim to reproduce a provider billing invoice.
 
 ## Supported source
 
@@ -33,24 +39,33 @@ Aqua reports **request tokens counted by Aqua** (`input_tokens + output_tokens`)
 
 | Role | Source |
 | --- | --- |
-| Primary candidate | OpenTelemetry `claude_code.api_request` (local POC; live verification pending) |
-| Fallback / current `report` | Claude Code JSONL `message.usage` |
+| Intended primary source | OpenTelemetry `claude_code.api_request` — live verification pending |
+| Current report source / fallback | Claude Code JSONL `message.usage` |
+
+OTel is a local proof of concept (`aqua-tokens otel-poc`). It is **not** the production `report` source yet.
 
 No other platforms in v1.
 
 ## How it works
 
-```
+```text
 Claude Code
     ↓
-usage telemetry (OTel api_request preferred; JSONL fallback)
+available usage source
+(OTel POC / JSONL)
     ↓
-Aqua (UsageEvent → SQLite, insert-if-new)
+Aqua UsageEvent
     ↓
-aggregation + water methodology
+local SQLite history
     ↓
-water range report
+aggregation
+    ↓
+water methodology
+    ↓
+estimated water range
 ```
+
+Today, `aqua-tokens report` reads JSONL. The OTel path is available for local verification via `otel-poc` and is not yet wired into `report`.
 
 ## Installation
 
@@ -82,7 +97,7 @@ aqua-tokens otel-poc --listen --output ./api-request.json
 
 ## Test with Claude Code
 
-A developer can verify the local OTel path with their own Claude Code install — no access to the author’s machine, no Claude account shared with Aqua, and no uploading raw logs.
+You can exercise the local OTel path with your own Claude Code install. You do not need access to the author’s machine, do not share your Claude account with Aqua, and should not upload raw Claude logs.
 
 1. **Clone and build**
 
@@ -98,7 +113,7 @@ A developer can verify the local OTel path with their own Claude Code install �
    aqua-tokens otel-poc --listen --output ./api-request.json
    ```
 
-3. **Configure Claude Code** — print the exact env block:
+3. **Configure Claude Code** — print the env / settings fragment:
 
    ```bash
    aqua-tokens otel-poc --print-config
@@ -117,7 +132,7 @@ A developer can verify the local OTel path with their own Claude Code install �
    - `cache_read_tokens`, `cache_creation_tokens`
    - `cost_usd`, `timestamp`, `session_id`
 
-7. **Live accuracy verification is still required.** Compare Aqua’s token fields to an appropriate Claude usage reference, then fill in `docs/live-verification.md`. Passing unit tests is not live verification.
+7. **Live accuracy verification is still required.** Compare Aqua’s token fields to an appropriate Claude usage reference, then record results in `docs/live-verification.md`. Passing unit tests is not live verification.
 
 Before sharing a fixture publicly, redact `request_id` / `session_id`. Never share prompts, tool results, or raw OTLP payloads.
 
@@ -132,14 +147,14 @@ Every number is a **range**, labeled with scope:
 
 Rates live in `water-methodology.json`. Estimates vary 30×+ with scope, model, query complexity, and data-center location. See Li et al. https://arxiv.org/abs/2304.03271
 
-**v1 accounting:** counted = `input_tokens + output_tokens`. Cache excluded.
+**v1 accounting:** counted = `input_tokens + output_tokens`. Cache excluded. This rule has not been changed for public release.
 
 ## Privacy
 
-- Aqua processes usage **locally**.
+- Aqua is designed to process usage **locally**.
 - Aqua does not need prompts, tool contents, or raw API bodies.
 - Aqua does not need a cloud account.
-- SQLite history stays on the machine.
+- Local SQLite history stays on the machine.
 - OTel verification uses a **localhost** collector (`127.0.0.1`).
 - Do not upload raw Claude logs; sanitize fixtures before publishing.
 

@@ -1,7 +1,7 @@
 {
   "name": "aqua-tokens",
   "version": "0.1.0",
-  "description": "Local CLI that tracks Claude Code usage and converts it into an estimated water-footprint range",
+  "description": "Local-first CLI that tracks available Claude Code usage data and converts counted request tokens into an estimated water-footprint range",
   "type": "module",
   "bin": {
     "aqua-tokens": "./dist/cli.js"

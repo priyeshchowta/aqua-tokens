@@ -1,8 +1,7 @@
 import { countedTokens } from "./accounting.js";
-import type { Methodology, Platform, ReportData, ReportRow, ScopeId, UsageEvent } from "./types.js";
+import type { Methodology, ReportData, ReportRow, ScopeId, UsageEvent } from "./types.js";
 import { tokensToWater, toiletFlushComparison } from "./water.js";
 
-const PLATFORMS: Platform[] = ["claude-code", "cursor"];
 const PERIODS: Array<ReportRow["period"]> = ["today", "week", "all"];
 
 export function startOfLocalDay(now: number): number {
@@ -33,7 +32,6 @@ export function buildReport(
     methodology: Methodology;
     now?: number;
     warnings?: ReportData["warnings"];
-    platformsScanned?: Platform[];
   },
 ): ReportData {
   const now = options.now ?? Date.now();
@@ -47,19 +45,15 @@ export function buildReport(
     return event.timestamp >= weekStart;
   };
 
-  const rows: ReportRow[] = [];
-  for (const period of PERIODS) {
-    for (const platform of PLATFORMS) {
-      const subset = events.filter((e) => e.platform === platform && inPeriod(e, period));
-      const totals = sumTokens(subset);
-      rows.push({
-        period,
-        platform,
-        ...totals,
-        water: tokensToWater(totals.tokens, scope, methodology),
-      });
-    }
-  }
+  const rows: ReportRow[] = PERIODS.map((period) => {
+    const subset = events.filter((e) => inPeriod(e, period));
+    const totals = sumTokens(subset);
+    return {
+      period,
+      ...totals,
+      water: tokensToWater(totals.tokens, scope, methodology),
+    };
+  });
 
   const lifetimeTotals = sumTokens(events);
   const lifetimeWater = tokensToWater(lifetimeTotals.tokens, scope, methodology);
@@ -68,6 +62,7 @@ export function buildReport(
   return {
     scope,
     scopeLabel: spec.label,
+    source: "Claude Code",
     lifetime: { ...lifetimeTotals, water: lifetimeWater },
     rows,
     comparison: toiletFlushComparison(lifetimeWater.lowMl, methodology),
@@ -75,6 +70,5 @@ export function buildReport(
     citation: methodology.citation,
     tokenAccounting: methodology.token_accounting.caveat,
     warnings: options.warnings ?? [],
-    platformsScanned: options.platformsScanned ?? PLATFORMS,
   };
 }

@@ -1,9 +1,9 @@
-export type Platform = "claude-code" | "cursor";
+export type Platform = "claude-code";
 
 export type ScopeId = "scope1" | "scope1plus2";
 
-/** Where a usage event was observed. Not interchangeable: JSONL, OTel, and Cursor DB mean different things. */
-export type UsageSource = "claude-jsonl" | "claude-otel" | "cursor-db" | "cursor-transcript";
+/** Where a usage event was observed. JSONL and OTel are not interchangeable. */
+export type UsageSource = "claude-jsonl" | "claude-otel";
 
 export interface UsageEvent {
   /** Stable deduplication key. Reprocessing the same source must reuse this id. */
@@ -51,7 +51,6 @@ export interface PeriodTotals extends TokenTotals {
 
 export interface ReportRow {
   period: "today" | "week" | "all";
-  platform: Platform;
   tokens: number;
   inputTokens: number;
   outputTokens: number;
@@ -61,6 +60,8 @@ export interface ReportRow {
 export interface ReportData {
   scope: ScopeId;
   scopeLabel: string;
+  /** v1 supports Claude Code only. */
+  source: "Claude Code";
   lifetime: PeriodTotals;
   rows: ReportRow[];
   comparison: string;
@@ -68,7 +69,6 @@ export interface ReportData {
   citation: string;
   tokenAccounting: string;
   warnings: ParseWarning[];
-  platformsScanned: Platform[];
 }
 
 export interface MethodologyScope {

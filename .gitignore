@@ -4,3 +4,21 @@ coverage/
 *.log
 .DS_Store
 .tmp/
+.env
+.env.*
+!.env.example
+
+# Local runtime / databases
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.vscdb
+*.vscdb-wal
+*.vscdb-shm
+
+# Packaged tarballs from npm pack
+*.tgz
+
+# Local OTel captures at repo root (fixtures under tests/ remain tracked)
+/otel-poc.jsonl
+/api-request.json

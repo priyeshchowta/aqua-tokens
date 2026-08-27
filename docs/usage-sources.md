@@ -1,8 +1,16 @@
 # Claude Code usage sources
 
-Investigation notes for aqua-tokens v1. **Accuracy first, automation second.** The background daemon is not started from this document.
+Investigation notes for aqua-tokens v1 (**Claude Code only**). **Accuracy first, automation second.** The background daemon is not started from this document.
 
-Report still reads Claude Code **JSONL**. OpenTelemetry is a proven local collector path, not yet the `report` source, because a live Claude Code process has not been captured on the development machine.
+**v1 platform scope:** Claude Code. Other editors/platforms are out of scope.
+
+Report still reads Claude Code **JSONL**. OpenTelemetry is a proven local collector path, not yet the `report` source, because a live Claude Code process has not been captured for definition-of-done.
+
+**Source priority:**
+
+1. **Primary candidate:** Claude Code OpenTelemetry `api_request`
+2. **Fallback / current report:** Claude Code JSONL `message.usage`
+
 
 ---
 
@@ -35,9 +43,9 @@ Then:
 aqua-tokens otel-poc --listen
 ```
 
-The receiver binds **127.0.0.1 only**, accepts OTLP HTTP JSON `POST /v1/logs`, and appends `claude_code.api_request` events to `~/.aqua-tokens/otel-poc.jsonl`. Protobuf/gRPC is rejected with 415; this POC does not speak those protocols.
+The receiver binds **127.0.0.1 only**, accepts OTLP HTTP JSON `POST /v1/logs`, and appends **sanitized** `claude_code.api_request` usage fields to `~/.aqua-tokens/otel-poc.jsonl` (never the raw OTLP payload). Optional `--output ./api-request.json` writes the latest event as pretty JSON for fixture sharing. Protobuf/gRPC is rejected with 415; this POC does not speak those protocols.
 
-Do **not** set `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_CONTENT`, or `OTEL_LOG_RAW_API_BODIES`. Those would persist conversation content. Aqua only needs usage attributes.
+Do **not** set `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_CONTENT`, or `OTEL_LOG_RAW_API_BODIES`. Those would persist conversation content. Aqua only needs usage attributes. Live checklist: `docs/live-verification.md`.
 
 The `console` exporter is local but not incremental (it prints to Claude's stdout). A loopback OTLP HTTP receiver is the local-only path Aqua can persist and re-read.
 
@@ -72,6 +80,7 @@ aqua-tokens otel-poc --file tests/fixtures/otel/api-request.json
 prints:
 
 ```text
+event.name claude_code.api_request
 request_id req_011NORMAL
 model claude-sonnet-4-6
 input_tokens 1200
@@ -82,7 +91,7 @@ cost_usd 0.0123
 timestamp/session_id 2026-08-14T10:00:01.000Z / sess-otel-1
 ```
 
-The same shape is accepted from a live Claude Code exporter via `--listen`. A live Claude Code session was **not** available on the development machine (existing JSONL is a synthetic login-failure with 0 tokens). The receiver and parser are covered by tests, including a loopback HTTP POST.
+The same sanitized shape is accepted from a live Claude Code exporter via `--listen`. A live Claude Code session has **not** yet been captured for definition-of-done (see `docs/live-verification.md`). The receiver and parser are covered by tests, including a loopback HTTP POST and a full OTel → SQLite → report e2e fixture test.
 
 ---
 
@@ -202,23 +211,14 @@ Dedup keys:
 |---|---|
 | Claude JSONL | `claude:${message.id}` |
 | Claude OTel | `claude-otel:${request_id\|client_request_id}` |
-| Cursor DB | `cursor:${composerId}:${bubbleId}` |
-| Cursor transcript | `cursor-jsonl:${sessionId}:${line}` |
 
 OTel events are **not** ingested into this store by `report` yet.
 
 ---
 
-## Cursor (Phase 10)
-
-Keep the local parser. Do not reverse-engineer `state.vscdb` further.
-
-On current desktop builds, `tokenCount` is present and **always 0**. That is not proof that no usage occurred. The report warns in those words. Context-window fields stay unused. Cursor API/CSV remains out of scope (breaks local-only).
-
----
-
 ## Not in this milestone
 
+- Other platforms (including Cursor)
 - Background daemon / watchers / notifications
 - `aqua-tokens start|stop|status`
 - Switching `report` to OTel as the primary Claude source

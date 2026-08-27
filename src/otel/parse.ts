@@ -23,6 +23,24 @@ export interface OtelApiRequest {
   eventSequence: number | null;
 }
 
+/**
+ * Public-safe usage fixture. Only the fields Aqua needs to validate water accounting.
+ * No prompts, tool calls, raw bodies, env vars, or account identifiers.
+ */
+export interface SanitizedApiRequestExport {
+  event: "claude_code.api_request";
+  request_id: string | null;
+  client_request_id: string | null;
+  model: string | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cache_read_tokens: number | null;
+  cache_creation_tokens: number | null;
+  cost_usd: number | null;
+  timestamp: string | null;
+  session_id: string | null;
+}
+
 export interface OtelParseResult {
   events: OtelApiRequest[];
   skipped: number;
@@ -89,6 +107,7 @@ export function otelRequestToUsageEvent(
 
 export function formatOtelApiRequest(req: OtelApiRequest): string {
   return [
+    `event.name claude_code.api_request`,
     `request_id ${req.requestId ?? "(missing)"}`,
     `model ${req.model ?? "(missing)"}`,
     `input_tokens ${req.inputTokens ?? "(missing)"}`,
@@ -98,6 +117,23 @@ export function formatOtelApiRequest(req: OtelApiRequest): string {
     `cost_usd ${req.costUsd ?? "(missing)"}`,
     `timestamp/session_id ${req.timestamp ?? "(missing)"} / ${req.sessionId ?? "(missing)"}`,
   ].join("\n");
+}
+
+/** Strip an api_request down to the usage fields Aqua needs (safe to share after redacting ids). */
+export function toSanitizedApiRequestExport(req: OtelApiRequest): SanitizedApiRequestExport {
+  return {
+    event: "claude_code.api_request",
+    request_id: req.requestId,
+    client_request_id: req.clientRequestId,
+    model: req.model,
+    input_tokens: req.inputTokens,
+    output_tokens: req.outputTokens,
+    cache_read_tokens: req.cacheReadTokens,
+    cache_creation_tokens: req.cacheCreationTokens,
+    cost_usd: req.costUsd,
+    timestamp: req.timestamp,
+    session_id: req.sessionId,
+  };
 }
 
 function collectLogRecords(payload: unknown): unknown[] {
@@ -165,13 +201,36 @@ function parseApiRequestRecord(record: unknown): OtelApiRequest | "skip" | "malf
 }
 
 function fromPersistedPoc(record: Record<string, unknown>): OtelApiRequest | null {
+  if ("resourceLogs" in record || "attributes" in record || "logRecords" in record) return null;
+
+  const snake =
+    record.event === "claude_code.api_request" ||
+    "input_tokens" in record ||
+    "request_id" in record ||
+    "cache_read_tokens" in record ||
+    "session_id" in record;
+  if (snake) {
+    return {
+      requestId: asOptionalString(record.request_id),
+      clientRequestId: asOptionalString(record.client_request_id),
+      model: asOptionalString(record.model),
+      inputTokens: asOptionalNonNegInt(record.input_tokens),
+      outputTokens: asOptionalNonNegInt(record.output_tokens),
+      cacheReadTokens: asOptionalNonNegInt(record.cache_read_tokens),
+      cacheCreationTokens: asOptionalNonNegInt(record.cache_creation_tokens),
+      costUsd: asOptionalNumber(record.cost_usd),
+      timestamp: asOptionalString(record.timestamp),
+      sessionId: asOptionalString(record.session_id),
+      eventSequence: asOptionalNonNegInt(record.event_sequence),
+    };
+  }
+
   const camel =
     "inputTokens" in record ||
     "requestId" in record ||
     "cacheReadTokens" in record ||
     "sessionId" in record;
   if (!camel) return null;
-  if ("resourceLogs" in record || "attributes" in record || "logRecords" in record) return null;
   return {
     requestId: asOptionalString(record.requestId),
     clientRequestId: asOptionalString(record.clientRequestId),

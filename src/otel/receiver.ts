@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import { parseOtelPayload, type OtelApiRequest } from "./parse.js";
+import { parseOtelPayload, toSanitizedApiRequestExport, type OtelApiRequest } from "./parse.js";
 
 export interface OtelReceiverOptions {
   host?: string;
@@ -90,7 +90,8 @@ async function handle(
 
   const parsed = parseOtelPayload(payload);
   for (const event of parsed.events) {
-    appendFileSync(options.outPath, JSON.stringify(event) + "\n", "utf8");
+    // Persist only sanitized usage fields — never the raw OTLP payload.
+    appendFileSync(options.outPath, JSON.stringify(toSanitizedApiRequestExport(event)) + "\n", "utf8");
     options.onEvent?.(event);
   }
 

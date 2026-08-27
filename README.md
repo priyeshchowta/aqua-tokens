@@ -1,142 +1,180 @@
 # aqua-tokens
 
-A local CLI that reads real token usage from **Claude Code** and **Cursor** session logs and converts it into an estimated **water consumption range**.
+Local CLI that tracks **Claude Code** usage on your machine and converts the measured usage into an estimated **water-footprint range**.
 
-No server. No account. No network calls. One machine, one number you can actually defend.
+No Aqua server. No Aqua account. No hosted dashboard. History stays in `~/.aqua-tokens/history.sqlite`.
+
+## Why it exists
+
+Token trackers show usage but not water. Water estimators often invent a single constant without reading real logs. Aqua reads **local Claude Code usage** (when available) and converts **request tokens counted by Aqua** into a **labeled range** with methodology caveat and citation — not a viral point estimate.
 
 ```
 $ aqua-tokens report
 
 🌊 Lifetime: 1.2M tokens · 12–60 L, scope-1+2
+  Source: Claude Code
 
-  Period     Platform      Tokens  Water (scope-1+2)
-  ---------  ------------  ------  -----------------
-  Today      Claude Code    12.4K  124–620 mL
-  ...
-
-  ~2 toilet flushes, conservative estimate (lifetime low end)
-
-  Estimates vary 30x+ depending on scope, model version, query complexity, and data center location.
-  Li, P., Yang, J., Islam, M.A., Ren, S. "Making AI Less Thirsty..." https://arxiv.org/abs/2304.03271
-  Totals are per-machine. Logs are local-only; a second computer is a separate total.
+  Period      Tokens  Water (scope-1+2)
+  ---------  ------  -----------------
+  Today        12.4K  124–620 mL
+  This week    80.0K  800 mL–4.0 L
+  All-time      1.2M  12–60 L
 ```
 
-## Why a range, not a single number
+## What it does
 
-AI water estimates are a contested topic. A point figure (100 mL per 1,000 tokens, 519 mL per prompt, etc.) travels well on social media and falls apart under citation-checking.
+Claude Code usage → request tokens counted by Aqua → water range (with caveat and citation).
 
-Li et al. themselves say the footprint of a query can vary **30× or more** with:
+Aqua reports **request tokens counted by Aqua** (`input_tokens + output_tokens`), not a billed invoice total and not “every token the model processed.” Cache read/write fields are stored when present but excluded from water.
 
-- **scope** — on-site cooling only vs cooling + the water used to generate electricity (up to ~75% of the total)
-- **model version and query complexity**
-- **data center location and season** (WUE and the grid's fuel mix)
+## Supported source
 
-So every number this tool prints is a **range**, labeled with the scope it measures, plus the paper's own caveat. If that feels unsatisfying, the alternative is a false precision the underlying data cannot support. Open an issue with a source if the rates in `water-methodology.json` need updating — that file is the only place the conversion lives.
+**Claude Code only** (v1).
 
-## Install
+| Role | Source |
+| --- | --- |
+| Primary candidate | OpenTelemetry `claude_code.api_request` (local POC; live verification pending) |
+| Fallback / current `report` | Claude Code JSONL `message.usage` |
 
-Requires Node.js 22.5+.
+No other platforms in v1.
+
+## How it works
+
+```
+Claude Code
+    ↓
+usage telemetry (OTel api_request preferred; JSONL fallback)
+    ↓
+Aqua (UsageEvent → SQLite, insert-if-new)
+    ↓
+aggregation + water methodology
+    ↓
+water range report
+```
+
+## Installation
+
+Requires **Node.js ≥ 22.5**.
 
 ```bash
+git clone https://github.com/priyeshchowta/aqua-tokens.git
 cd aqua-tokens
 npm install
+npm test
 npm run build
-npm link
+npm link   # optional
 ```
 
-Or run without linking:
+Or without linking: `npx tsx src/cli.ts report`
+
+## Basic usage
 
 ```bash
-npx tsx src/cli.ts report
-```
-
-## Usage
-
-```bash
-aqua-tokens report           # default: scope-1+2 (cooling + electricity generation)
-aqua-tokens report --scope1  # conservative on-site cooling only
+aqua-tokens report
+aqua-tokens report --scope1
 aqua-tokens report --json
 aqua-tokens otel-poc --print-config
 aqua-tokens otel-poc --listen
+aqua-tokens otel-poc --listen --output ./api-request.json
 ```
 
-`--scope1` is the Google / Altman on-site-cooling band (~0.26–0.32 mL per ~1,000-token query). It is labeled as an undercount.
+`report` currently reads Claude Code JSONL under `~/.claude/projects/` (and `transcripts/`). Do not treat JSONL as authoritative billed usage until verified against Claude’s usage UI.
 
-Claude Code OpenTelemetry is a **local proof of concept** (`aqua-tokens otel-poc --listen`). It does not require an Aqua server. `report` still reads JSONL until a live `api_request` event is compared to Claude's usage display. Details: `docs/usage-sources.md`.
+## Test with Claude Code
 
-## What is counted
+A developer can verify the local OTel path with their own Claude Code install — no access to the author’s machine, no Claude account shared with Aqua, and no uploading raw logs.
 
-Water is applied to **API-request input + output tokens only**. Cache-read / cache-write tokens are parsed when present but **not** folded into the water total — the paper's 500–2,500 token query band is about the query itself, and treating a 200k cache hit as 80 extra queries would invent a number the methodology does not support.
+1. **Clone and build**
 
-The report therefore does **not** call this "total AI token usage" or "billed tokens". Every report includes the accounting caveat from `water-methodology.json`.
+   ```bash
+   git clone https://github.com/priyeshchowta/aqua-tokens.git
+   cd aqua-tokens
+   npm install && npm run build
+   ```
 
-Claude Code totals currently come from `~/.claude/projects/**/*.jsonl` (`message.usage.input_tokens` + `output_tokens`). OpenTelemetry `claude_code.api_request` is a local POC (`aqua-tokens otel-poc`) and is not yet the report source — see `docs/usage-sources.md`. Do not treat Claude Code statusline `total_input_tokens` / `total_output_tokens` as cumulative usage; those are context-window fields.
+2. **Start the local OTel listener** (loopback only: `127.0.0.1:4318`)
 
-Cursor totals come from per-bubble `tokenCount` in `state.vscdb` when Cursor actually stored it. On current desktop builds that object is present but unused (every bubble on the development machine was `{ inputTokens: 0, outputTokens: 0 }`, including mid-chat); agent transcripts have no `usage` block either. Real Cursor billing lives on their servers (Settings → Usage / CSV). The report then warns that a **zero Cursor total is not proof that no usage occurred**, and does not guess from character length or from context-window fields like `contextTokensUsed`.
+   ```bash
+   aqua-tokens otel-poc --listen --output ./api-request.json
+   ```
 
-## Log locations (per OS)
+3. **Configure Claude Code** — print the exact env block:
 
-Claude Code (override with `CLAUDE_CONFIG_DIR`):
+   ```bash
+   aqua-tokens otel-poc --print-config
+   ```
 
-| OS | Path |
-| --- | --- |
-| macOS / Linux / Windows | `~/.claude/projects/` and `~/.claude/transcripts/` |
+   Put that `env` object in `~/.claude/settings.json`, or export the same variables in your shell.
 
-Cursor desktop DB:
+4. **Do not enable** `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_CONTENT`, or `OTEL_LOG_RAW_API_BODIES`. Aqua only needs usage attributes.
 
-| OS | Path |
-| --- | --- |
-| macOS | `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb` |
-| Linux | `$XDG_CONFIG_HOME/Cursor/User/globalStorage/state.vscdb` (default `~/.config/Cursor/...`) |
-| Windows | `%APPDATA%\Cursor\User\globalStorage\state.vscdb` |
+5. **Run one or two normal Claude Code requests**, wait a second for export, then stop Claude.
 
-Cursor agent transcripts, when present: `~/.cursor/projects/*/agent-transcripts/`.
+6. **Inspect the received `claude_code.api_request`.** Aqua prints / writes only:
 
-If a log file exists but does not match the expected schema, the CLI **exits with** `unrecognized log format, please open an issue` instead of inventing a parse.
+   - `event.name`, `request_id`, `model`
+   - `input_tokens`, `output_tokens`
+   - `cache_read_tokens`, `cache_creation_tokens`
+   - `cost_usd`, `timestamp`, `session_id`
 
-## Totals are per-machine
+7. **Live accuracy verification is still required.** Compare Aqua’s token fields to an appropriate Claude usage reference, then fill in `docs/live-verification.md`. Passing unit tests is not live verification.
 
-Storage is local (`~/.aqua-tokens/history.sqlite`). Using Claude Code or Cursor on a laptop and a desktop produces two separate lifetimes. That is by design, not a sync bug. The store is insert-if-new: re-running `report` does not double-count.
+Before sharing a fixture publicly, redact `request_id` / `session_id`. Never share prompts, tool results, or raw OTLP payloads.
 
-## Methodology
+## Water methodology
 
-The [Ren-Research notebooks](https://github.com/Ren-Research/Making-AI-Less-Thirsty) (MIT licensed) compute water as:
+Every number is a **range**, labeled with scope:
 
-```text
-water ≈ power × (on-site WUE + off-site EWIF × PUE)
-```
-
-over **datacenter hours / training runs** (LaMDA, hourly EIA fuel mix, wet-bulb WUE). They do not expose a per-query or per-token formula, so this tool does **not** pretend to port one.
-
-**Fallback used here** — an interpolation from the paper's published query-scale figures, stored in `water-methodology.json`:
-
-| Scope | Rate (this tool's interpolation) | Source |
+| Scope | Rate (Aqua interpolation) | Notes |
 | --- | --- | --- |
-| **scope-1+2** (default) | 10–50 mL per 1,000 tokens | Li et al.: 10–50 mL per a ~500–2,500 token query. Midpoint reference = 1,000 tokens. Example: 1.2M tokens → 12–60 L. |
-| **scope-1** (`--scope1`) | 0.26–0.32 mL per 1,000 tokens | Google 2025 Environmental Report (median Gemini prompt) and Sam Altman's June 2025 ChatGPT disclosure, on-site cooling only. |
+| **scope-1+2** (default) | 10–50 mL / 1,000 tokens | Li et al. query-band interpolation |
+| **scope-1** (`--scope1`) | 0.26–0.32 mL / 1,000 tokens | On-site cooling only (undercount) |
 
-This per-token rate is **ours**, not a number Li et al. state directly. The paper notes power-plant water can be up to 75% of a query's footprint, which is why scope-1-only badly understates the real number.
+Rates live in `water-methodology.json`. Estimates vary 30×+ with scope, model, query complexity, and data-center location. See Li et al. https://arxiv.org/abs/2304.03271
 
-### Why not tokenwater's 100 mL / 1,000 tokens?
+**v1 accounting:** counted = `input_tokens + output_tokens`. Cache excluded.
 
-[tokenwater](https://github.com/Lesterhau/tokenwater) is prior art for the "show water, not just tokens" idea. Its single constant (100 mL per 1,000 tokens) does not cleanly reconcile with the Li et al. figures it cites: back-calculating from their 519 mL / 100-word example implies a rate roughly 40× higher than 100 mL / 1,000 tokens. That is why aqua-tokens uses a **labeled range** instead of one more viral constant.
+## Privacy
 
-## Data sources
+- Aqua processes usage **locally**.
+- Aqua does not need prompts, tool contents, or raw API bodies.
+- Aqua does not need a cloud account.
+- SQLite history stays on the machine.
+- OTel verification uses a **localhost** collector (`127.0.0.1`).
+- Do not upload raw Claude logs; sanitize fixtures before publishing.
 
-- Li, P., Yang, J., Islam, M.A., Ren, S. "Making AI Less Thirsty: Uncovering and Addressing the Secret Water Footprint of AI Models." UC Riverside, 2023 / Commun. ACM 2024. https://arxiv.org/abs/2304.03271 — primary source. MIT-licensed code: https://github.com/Ren-Research/Making-AI-Less-Thirsty
-- OpenAI (Sam Altman, June 2025) and Google 2025 Environmental Report — scope-1 on-site figures
-- Luccioni, A.S. et al. (2023). "Power Hungry Processing." https://arxiv.org/abs/2311.16863 — supporting context on per-model inference energy variance
-- tokenwater (Lesterhau/tokenwater) — prior art, see above
+## Limitations
 
-## v1 non-goals
-
-No hosted dashboard, accounts, leaderboard, shareable public URL, browser extension, or 13-platform sweep. Two platforms parsed accurately beats many parsed shallow. `aqua-tokens share` (a local PNG/SVG card) is explicitly a stretch goal for after these numbers are trusted.
+- Live Claude Code OTel verification is **pending**.
+- `report` still uses JSONL until OTel is verified and wired in.
+- Statusline context-window fields are **not** a usage source.
+- Water rates are Aqua’s interpolation, not a per-token formula stated by Li et al.
+- Totals are per-machine (no sync).
+- Background daemon, notifications, and share cards are **not** implemented.
 
 ## Development
 
 ```bash
+npm install
 npm test
 npm run build
+npm run verify
 npx tsx src/cli.ts report
 npx tsx src/cli.ts otel-poc --file tests/fixtures/otel/api-request.json
 ```
+
+## Verification status
+
+| Kind | Status |
+| --- | --- |
+| Automated tests | `npm test` (offline) |
+| Synthetic OTel → report | Covered by e2e fixture test |
+| Live Claude Code OTel | **Pending** until a real `claude_code.api_request` is captured and compared |
+
+> Live Claude Code OTel verification is pending until a real Claude Code session produces a `claude_code.api_request` that can be inspected and compared with an appropriate Claude usage reference.
+
+Details: `docs/usage-sources.md`, `docs/live-verification.md`, `PROJECT_OVERVIEW.md`.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports and live Claude OTel verification notes (via `docs/live-verification.md`) are especially welcome. Please do not open PRs that add other platforms, a daemon, or notifications until live OTel verification is done.

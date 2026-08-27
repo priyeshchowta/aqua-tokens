@@ -1,3 +1,0 @@
-{"role":"user","message":{"content":[{"type":"text","text":"hi"}]}}
-{"role":"assistant","message":{"content":[{"type":"text","text":"hello"}]},"usage":{"input_tokens":100,"output_tokens":50}}
-{"type":"turn_ended","status":"success"}

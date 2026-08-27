@@ -26,6 +26,7 @@ describe("Claude Code OTel api_request parser", () => {
       sessionId: "sess-otel-1",
     });
     const printed = formatOtelApiRequest(events[0]!);
+    expect(printed).toContain("event.name claude_code.api_request");
     expect(printed).toContain("request_id req_011NORMAL");
     expect(printed).toContain("input_tokens 1200");
     expect(printed).toContain("cache_read_tokens 4000");
@@ -166,6 +167,9 @@ describe("local OTLP receiver", () => {
       const saved = await readOtelFile(outPath);
       expect(saved[0]?.requestId).toBe("req_011LIVE");
       expect(saved[0]?.inputTokens).toBe(7);
+      const rawLine = (await import("node:fs")).readFileSync(outPath, "utf8").trim();
+      expect(rawLine).toContain('"event":"claude_code.api_request"');
+      expect(rawLine).not.toMatch(/resourceLogs|prompt|tool_result/i);
     } finally {
       await receiver.close();
     }

@@ -8,8 +8,8 @@ export interface JsonlLine {
 
 /**
  * Stream a JSONL file, splitting only on \\n / \\r\\n.
- * Do not use readline — U+2028/U+2029 appear inside Cursor transcript strings
- * and would tear valid JSON in half.
+ * Do not use readline — U+2028/U+2029 can appear inside JSON strings and would
+ * tear valid JSON in half.
  *
  * A trailing incomplete line (common in an active session) is skipped when it
  * does not parse. Fully invalid JSON in the middle is returned as

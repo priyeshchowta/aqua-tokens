@@ -1,7 +1,7 @@
 {
   "name": "aqua-tokens",
-  "version": "1.0.0",
-  "description": "Local CLI that converts Claude Code and Cursor token logs into an estimated water-consumption range",
+  "version": "0.1.0",
+  "description": "Local CLI that tracks Claude Code usage and converts it into an estimated water-footprint range",
   "type": "module",
   "bin": {
     "aqua-tokens": "./dist/cli.js"
@@ -14,10 +14,11 @@
     "THIRD_PARTY_NOTICES"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist && tsc",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify": "npm test && npm run build"
   },
   "engines": {
     "node": ">=22.5.0"
@@ -27,9 +28,18 @@
     "tokens",
     "water",
     "claude-code",
-    "cursor"
+    "anthropic",
+    "opentelemetry"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/priyeshchowta/aqua-tokens.git"
+  },
+  "bugs": {
+    "url": "https://github.com/priyeshchowta/aqua-tokens/issues"
+  },
+  "homepage": "https://github.com/priyeshchowta/aqua-tokens#readme",
   "dependencies": {
     "commander": "^14.0.0"
   },

@@ -1,10 +1,5 @@
 import { formatTokens, formatVolumeRange, pad, padLeft } from "./format.js";
-import type { Platform, ReportData, ReportRow } from "./types.js";
-
-const PLATFORM_LABEL: Record<Platform, string> = {
-  "claude-code": "Claude Code",
-  cursor: "Cursor",
-};
+import type { ReportData, ReportRow } from "./types.js";
 
 const PERIOD_LABEL: Record<ReportRow["period"], string> = {
   today: "Today",
@@ -19,14 +14,12 @@ export function formatReport(report: ReportData): string {
 
   const tableRows = report.rows.map((row) => ({
     period: PERIOD_LABEL[row.period],
-    platform: PLATFORM_LABEL[row.platform],
     tokens: formatTokens(row.tokens),
     water: formatVolumeRange(row.water.lowMl, row.water.highMl),
   }));
 
   const widths = {
     period: Math.max("Period".length, ...tableRows.map((r) => r.period.length)),
-    platform: Math.max("Platform".length, ...tableRows.map((r) => r.platform.length)),
     tokens: Math.max("Tokens".length, ...tableRows.map((r) => r.tokens.length)),
     water: Math.max(`Water (${report.scopeLabel})`.length, ...tableRows.map((r) => r.water.length)),
   };
@@ -36,16 +29,12 @@ export function formatReport(report: ReportData): string {
     "  " +
     pad("Period", widths.period) +
     "  " +
-    pad("Platform", widths.platform) +
-    "  " +
     padLeft("Tokens", widths.tokens) +
     "  " +
     pad(waterHeader, widths.water);
   const rule =
     "  " +
     "-".repeat(widths.period) +
-    "  " +
-    "-".repeat(widths.platform) +
     "  " +
     "-".repeat(widths.tokens) +
     "  " +
@@ -57,8 +46,6 @@ export function formatReport(report: ReportData): string {
         "  " +
         pad(row.period, widths.period) +
         "  " +
-        pad(row.platform, widths.platform) +
-        "  " +
         padLeft(row.tokens, widths.tokens) +
         "  " +
         pad(row.water, widths.water),
@@ -69,6 +56,7 @@ export function formatReport(report: ReportData): string {
 
   const lines = [
     headline,
+    `  Source: ${report.source}`,
     "",
     header,
     rule,
@@ -92,6 +80,7 @@ export function formatReport(report: ReportData): string {
 export function reportToJson(report: ReportData): unknown {
   return {
     scope: report.scopeLabel,
+    source: report.source,
     lifetime: {
       tokens: report.lifetime.tokens,
       water_ml: {
@@ -102,7 +91,6 @@ export function reportToJson(report: ReportData): unknown {
     },
     breakdown: report.rows.map((row) => ({
       period: row.period,
-      platform: row.platform,
       tokens: row.tokens,
       water_ml: { low: row.water.lowMl, high: row.water.highMl },
       water: formatVolumeRange(row.water.lowMl, row.water.highMl),

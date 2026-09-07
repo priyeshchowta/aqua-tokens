@@ -3,6 +3,8 @@
 This checklist is for a **real** Claude Code session against Aqua's local OTel POC.
 Automated tests and synthetic fixtures do **not** complete it.
 
+**How to run the check:** see `docs/verify-with-claude-code.md`.
+
 **Supported source (v1):** Claude Code only.
 
 Live Claude verification status: **pending**.

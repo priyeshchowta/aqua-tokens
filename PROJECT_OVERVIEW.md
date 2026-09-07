@@ -18,7 +18,7 @@ No Aqua server, no Aqua accounts, no hosted dashboard. Totals are labeled **requ
 | Automated tests / `npm run verify` | Pass offline |
 | Synthetic OTel → UsageEvent → SQLite → report | Covered |
 | OTel POC (`otel-poc`) | Loopback `127.0.0.1:4318`; sanitized export |
-| Live Claude `api_request` vs Claude usage UI | **Pending** |
+| Live Claude `api_request` vs Claude usage UI | **Accepted with caveats** (company laptop / LiteLLM; pinch of salt — see `docs/live-verification.md`) |
 | Claude JSONL → `report` | Current report source / fallback |
 | Cursor | **Out of scope for v1** (removed from product surface and production collect path) |
 | Background daemon / notifications / `share` | **Not implemented** |
@@ -49,12 +49,11 @@ aggregation → water calculation → report
 - Synthetic e2e OTel → report test
 - Cursor removed from production collection and user-facing claims
 
-### Pending (next milestone)
+### Live verification decision
 
-1. Live Claude Code OTel capture + compare to Claude usage reference (`docs/live-verification.md`)
-2. Only then wire OTel into `report` and consider a background collector
+Company laptop (LiteLLM) is the **final** live test machine — no personal/direct-Anthropic retest planned. Transport/parse verified; token-field fidelity vs Claude UI not proven. Keep JSONL as `report`; OTel stays POC. Details: `docs/live-verification.md`.
 
-Do **not** start the daemon, notifications, or share cards before that gate.
+Do **not** start the daemon, notifications, or share cards while OTel is only caveated-POC.
 
 ### Known limitations
 

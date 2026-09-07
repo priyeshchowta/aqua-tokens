@@ -160,10 +160,12 @@ Do **not** share:
 
 ## Definition of done
 
-Live verification passes only if:
+For this project, the company laptop (often LiteLLM) is the **final** live test machine. Results are **accepted with caveats** — pinch of salt, not first-party Claude UI parity.
+
+We treat live OTel as good enough to trust transport/parse when:
 
 1. A real `claude_code.api_request` arrived on localhost.
-2. Token fields look coherent vs Claude’s usage reference.
-3. `docs/live-verification.md` is filled with **match**, or a clear **mismatch** / **no event** note.
+2. Environment/proxy caveats are documented.
+3. `docs/live-verification.md` records findings honestly.
 
-After that, decide whether to wire OTel into `aqua-tokens report`.
+We still **do not** auto-wire OTel into `aqua-tokens report` from that alone. JSONL remains the report source until a deliberate product decision says otherwise.

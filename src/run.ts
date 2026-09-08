@@ -31,7 +31,7 @@ export async function generateReport(options: GenerateReportOptions = {}): Promi
       warnings.push({
         platform: "claude-code",
         message:
-          "No Claude Code project logs found under ~/.claude. Run Claude Code locally, or configure OTel (aqua-tokens otel-poc --print-config).",
+          "No Claude Code project logs found under ~/.claude. Run Claude Code locally to generate usage data.",
       });
     }
 

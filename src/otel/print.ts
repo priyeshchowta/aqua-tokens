@@ -39,14 +39,15 @@ export function writeSanitizedApiRequest(filePath: string, event: OtelApiRequest
 }
 
 /**
- * Printed by `aqua-tokens otel-poc --print-config`.
+ * Printed by `npm run otel-poc -- --print-config`.
  * Explains which env vars a Claude Code user must set for the local POC.
+ * Internal dev/testing tool only — not part of the public aqua-tokens CLI.
  */
 export const MINIMUM_CLAUDE_OTEL_CONFIG = `Claude Code → Aqua local OTel (loopback only)
 =============================================
 
 1. Start Aqua first:
-     aqua-tokens otel-poc --listen
+     npm run otel-poc -- --listen
 
 2. Put the JSON below into ~/.claude/settings.json (under "env"),
    OR export the same variables in your shell before starting Claude Code.

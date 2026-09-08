@@ -33,7 +33,7 @@ Read `PROJECT_OVERVIEW.md` and `docs/usage-sources.md` before making architectur
 Implemented:
 
 - Claude Code JSONL parser (`report` source / fallback)
-- Claude Code OpenTelemetry POC (`aqua-tokens otel-poc`) — loopback OTLP HTTP JSON + sanitized `api_request` export (`--output`)
+- Claude Code OpenTelemetry POC (`npm run otel-poc`, internal dev script — not part of the public CLI) — loopback OTLP HTTP JSON + sanitized `api_request` export (`--output`)
 - Idempotent SQLite event store (`INSERT OR IGNORE` by deterministic id)
 - Water methodology + range report (scope-1 and scope-1+2)
 - v1 token-accounting rule (input+output counted; cache excluded)

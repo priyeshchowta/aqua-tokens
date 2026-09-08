@@ -28,8 +28,8 @@ Transport, parse, sanitize, and ID fallback are verified against real `claude_co
 
 ## Claude Code
 
-- [x] OTel is enabled (`CLAUDE_CODE_ENABLE_TELEMETRY=1` and the env block from `aqua-tokens otel-poc --print-config`).
-- [x] Aqua is listening on localhost (`aqua-tokens otel-poc --listen` → `127.0.0.1:4318`).
+- [x] OTel is enabled (`CLAUDE_CODE_ENABLE_TELEMETRY=1` and the env block from `npm run otel-poc -- --print-config`).
+- [x] Aqua is listening on localhost (`npm run otel-poc -- --listen` → `127.0.0.1:4318`).
 - [x] A real Claude Code request was made (normal chat / tool use — not a synthetic login failure).
 - [x] A real `claude_code.api_request` was received and printed by Aqua. **27 events** in the refresh capture (earlier sample was 12).
 - [~] `input_tokens` is non-zero when expected. **Quantized small values (`2` ×25, `94` ×2) — see Finding 2.**

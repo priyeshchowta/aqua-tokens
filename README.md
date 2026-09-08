@@ -8,7 +8,7 @@ Aqua is built around a simple idea: **AI usage should be visible and accountable
 
 No Aqua server. No Aqua account. No hosted dashboard. Aqua stores its usage history locally on your machine in `~/.aqua-tokens/history.sqlite`.
 
-> **Status:** Early development. `report` uses Claude Code JSONL today. Local OpenTelemetry (`otel-poc`) is a verified proof of concept **with caveats** — not yet the `report` source. See `docs/live-verification.md`.
+> **Status:** Early development. `report` uses Claude Code JSONL today. A local OpenTelemetry dev/testing script (`npm run otel-poc`, internal — not part of the public CLI) is a verified proof of concept **with caveats** — not yet the `report` source. See `docs/live-verification.md`.
 
 ## ⚠️ Known accuracy limitations
 
@@ -16,7 +16,7 @@ Read this before trusting any number `aqua-tokens` prints. This is not boilerpla
 
 - **Cache tokens are excluded from the water estimate, and this can be a huge undercount.** Aqua only counts `input_tokens + output_tokens`. In real-session testing against a live Claude Code agentic session, cache tokens (`cache_read_tokens` + `cache_creation_tokens`) made up **~99% of total tokens processed** (25,772 counted vs. 3,461,495 excluded, out of 3,487,267 total). That means the reported water figure can undercount the actual footprint of a cache-heavy session by **up to ~135x**. See Finding 3 in `docs/live-verification.md` for the raw numbers.
 - **The JSONL parser's token counts have not been verified against Claude Code's own usage UI on a direct, non-proxied Anthropic setup.** All live verification to date was captured through a corporate LLM proxy (`ANTHROPIC_BASE_URL` set), and a first-party Claude usage-UI comparison was not available in that environment. Treat `report`'s numbers as internally consistent, not as validated against Claude's own accounting, until someone runs the direct-Anthropic comparison in `docs/verify-with-claude-code.md`.
-- **Live OTel capture works, but is not wired into `report`.** The OpenTelemetry proof of concept (`aqua-tokens otel-poc`) has verified transport and parsing on real `claude_code.api_request` events. It is **not** more authoritative than JSONL — it has the same cache-exclusion gap, plus its own open issues (missing `request_id`, quantized `input_tokens` under cache-heavy sessions). Do not treat `otel-poc` output as a corrected or "true" number relative to `report`.
+- **Live OTel capture works, but is not wired into `report`.** The OpenTelemetry proof of concept (`npm run otel-poc`, an internal dev/testing script — not part of the public `aqua-tokens` CLI) has verified transport and parsing on real `claude_code.api_request` events. It is **not** more authoritative than JSONL — it has the same cache-exclusion gap, plus its own open issues (missing `request_id`, quantized `input_tokens` under cache-heavy sessions). Do not treat its output as a corrected or "true" number relative to `report`.
 
 We'd rather say this loudly than let a clean-looking table imply more certainty than the underlying data supports. See [Contributing](#contributing) for how you can help close these gaps.
 
@@ -134,13 +134,13 @@ The range is intentional. Aqua does not present a single precise-looking number 
 | Intended primary source | OpenTelemetry `claude_code.api_request` — POC verified with caveats |
 | Current report source / fallback | Claude Code JSONL `message.usage` |
 
-The OpenTelemetry implementation is currently a local proof of concept:
+The OpenTelemetry implementation is currently a local proof of concept, run as an internal dev/testing script (not part of the public `aqua-tokens` CLI):
 
 ```bash
-aqua-tokens otel-poc
+npm run otel-poc
 ```
 
-It is **not yet the production source for `report`**.
+It is **not yet the production source for `report`**, and it is intentionally not reachable from the installed `aqua-tokens` binary. See [Development](#development) for details.
 
 Today, `aqua-tokens report` reads Claude Code JSONL usage data. Live OTel transport has been verified with caveats (`docs/live-verification.md`); OTel is not wired into `report` yet.
 
@@ -172,7 +172,7 @@ Aqua stores its usage history locally:
 
 There is no Aqua cloud service involved in the current architecture.
 
-Today, `aqua-tokens report` reads JSONL. The OTel path is available for local verification via `otel-poc` and is not yet wired into `report`.
+Today, `aqua-tokens report` reads JSONL. The OTel path is available for local verification via the internal `npm run otel-poc` dev script and is not yet wired into `report`.
 
 ## Installation
 
@@ -202,126 +202,19 @@ npx tsx src/cli.ts report
 
 ## Basic usage
 
+`aqua-tokens` has exactly one public command:
+
 ```bash
 aqua-tokens report
 aqua-tokens report --scope1
 aqua-tokens report --json
 ```
 
-For the OpenTelemetry proof of concept:
-
-```bash
-aqua-tokens otel-poc --print-config
-aqua-tokens otel-poc --listen
-```
-
 `report` currently reads Claude Code JSONL usage data from the local Claude Code data directories.
 
 JSONL should not be treated as authoritative billed usage until it has been verified against an appropriate Claude usage reference.
 
-## Test with Claude Code
-
-The OTel proof of concept can be tested with your own Claude Code installation.
-
-You do not need access to the author's machine, you do not share your Claude account with Aqua, and you should not upload raw Claude logs.
-
-### 1. Clone and build
-
-```bash
-git clone https://github.com/priyeshchowta/aqua-tokens.git
-cd aqua-tokens
-npm install
-npm run build
-```
-
-### 2. Start the local OTel listener
-
-The listener uses loopback by default:
-
-```text
-127.0.0.1:4318
-```
-
-Start it using the command supported by the current CLI:
-
-```bash
-aqua-tokens otel-poc --listen
-```
-
-### 3. Get the Claude Code configuration
-
-Print the configuration generated by Aqua:
-
-```bash
-aqua-tokens otel-poc --print-config
-```
-
-Put the printed `env` block into `~/.claude/settings.json`, or export the same variables in your shell before starting Claude Code.
-
-### 4. Keep telemetry minimal
-
-Do **not** enable telemetry options that collect additional content such as:
-
-```text
-OTEL_LOG_USER_PROMPTS
-OTEL_LOG_TOOL_CONTENT
-OTEL_LOG_RAW_API_BODIES
-```
-
-Aqua only needs usage-related attributes for this verification.
-
-### 5. Run Claude Code
-
-Run one or two normal Claude Code requests and allow enough time for telemetry to be exported.
-
-### 6. Look for the API request event
-
-The event Aqua is trying to verify is:
-
-```text
-claude_code.api_request
-```
-
-The relevant usage information includes fields such as:
-
-```text
-event.name
-request_id
-model
-input_tokens
-output_tokens
-cache_read_tokens
-cache_creation_tokens
-cost_usd
-timestamp
-session_id
-```
-
-Only the fields required for usage accounting should be retained or shared.
-
-### 7. Live verification
-
-Live OTel verification is **accepted with caveats**.
-
-Real `claude_code.api_request` events were received and parsed on localhost. First-party Claude usage-UI comparison was not available in the verification environment (proxied session). Details and findings:
-
-```text
-docs/live-verification.md
-```
-
-Passing automated or synthetic tests alone does **not** constitute live verification. Independent re-checks are welcome via `docs/verify-with-claude-code.md`.
-
-### Privacy when sharing test data
-
-Before sharing a fixture publicly:
-
-- redact `request_id`;
-- redact `session_id`;
-- remove prompts;
-- remove tool contents;
-- remove source code;
-- remove credentials;
-- do not share raw OTLP payloads.
+> The OpenTelemetry proof of concept (`otel-poc`) is **not** a public CLI command — it's an internal dev/testing script. See [Development](#development) if you want to run or test it.
 
 ## Water methodology
 
@@ -453,6 +346,118 @@ Automated tests should not require:
 - Cursor;
 - API keys;
 - network access to an AI provider.
+
+### OTel proof of concept (internal, unverified — not a public command)
+
+`otel-poc` is a **dev/testing script**, not part of the public `aqua-tokens` CLI. It doesn't ship in the built binary and won't show up in `aqua-tokens --help`. Run it via `tsx` against source:
+
+```bash
+npm run otel-poc -- --print-config
+npm run otel-poc -- --listen
+npm run otel-poc -- --file tests/fixtures/otel/api-request.json
+```
+
+Known issues, none of which are fixed: quantized `input_tokens` under cache-heavy sessions, `request_id` sometimes null under proxies, and it is not wired into `report` or verified against Claude Code's own usage UI. See `docs/live-verification.md` for the full findings.
+
+You do not need access to the author's machine, you do not share your Claude account with Aqua, and you should not upload raw Claude logs.
+
+#### 1. Clone and build
+
+```bash
+git clone https://github.com/priyeshchowta/aqua-tokens.git
+cd aqua-tokens
+npm install
+npm run build
+```
+
+#### 2. Start the local OTel listener
+
+The listener uses loopback by default:
+
+```text
+127.0.0.1:4318
+```
+
+Start it:
+
+```bash
+npm run otel-poc -- --listen
+```
+
+#### 3. Get the Claude Code configuration
+
+Print the configuration generated by Aqua:
+
+```bash
+npm run otel-poc -- --print-config
+```
+
+Put the printed `env` block into `~/.claude/settings.json`, or export the same variables in your shell before starting Claude Code.
+
+#### 4. Keep telemetry minimal
+
+Do **not** enable telemetry options that collect additional content such as:
+
+```text
+OTEL_LOG_USER_PROMPTS
+OTEL_LOG_TOOL_CONTENT
+OTEL_LOG_RAW_API_BODIES
+```
+
+Aqua only needs usage-related attributes for this verification.
+
+#### 5. Run Claude Code
+
+Run one or two normal Claude Code requests and allow enough time for telemetry to be exported.
+
+#### 6. Look for the API request event
+
+The event Aqua is trying to verify is:
+
+```text
+claude_code.api_request
+```
+
+The relevant usage information includes fields such as:
+
+```text
+event.name
+request_id
+model
+input_tokens
+output_tokens
+cache_read_tokens
+cache_creation_tokens
+cost_usd
+timestamp
+session_id
+```
+
+Only the fields required for usage accounting should be retained or shared.
+
+#### 7. Live verification
+
+Live OTel verification is **accepted with caveats**.
+
+Real `claude_code.api_request` events were received and parsed on localhost. First-party Claude usage-UI comparison was not available in the verification environment (proxied session). Details and findings:
+
+```text
+docs/live-verification.md
+```
+
+Passing automated or synthetic tests alone does **not** constitute live verification. Independent re-checks are welcome via `docs/verify-with-claude-code.md`.
+
+#### Privacy when sharing test data
+
+Before sharing a fixture publicly:
+
+- redact `request_id`;
+- redact `session_id`;
+- remove prompts;
+- remove tool contents;
+- remove source code;
+- remove credentials;
+- do not share raw OTLP payloads.
 
 ## Contributing
 

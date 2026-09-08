@@ -111,9 +111,9 @@ Ids: `claude:<message.id>`, `claude-otel:<request_id>`.
 aqua-tokens report
 aqua-tokens report --scope1
 aqua-tokens report --json
-aqua-tokens otel-poc --print-config
-aqua-tokens otel-poc --listen
-aqua-tokens otel-poc --listen --output ./api-request.json
+npm run otel-poc -- --print-config
+npm run otel-poc -- --listen
+npm run otel-poc -- --listen --output ./api-request.json
 ```
 
 No `start` / `stop` / `status` in this milestone.

@@ -48,7 +48,7 @@ aqua-tokens --help
 In terminal A (leave it running):
 
 ```bash
-aqua-tokens otel-poc --listen --output ./api-request.json
+npm run otel-poc -- --listen --output ./api-request.json
 ```
 
 You should see it listening on `127.0.0.1:4318`.
@@ -58,7 +58,7 @@ You should see it listening on `127.0.0.1:4318`.
 In terminal B:
 
 ```bash
-aqua-tokens otel-poc --print-config
+npm run otel-poc -- --print-config
 ```
 
 Add the printed `env` block into `~/.claude/settings.json` (merge under `"env"` if that key already exists):
@@ -192,8 +192,8 @@ You are helping re-verify the local `aqua-tokens` package against a real Claude 
 
 1. From repo root: `npm install && npm run verify && npm run build && npm link`
 2. Document environment: `claude --version`, OS, whether `ANTHROPIC_BASE_URL` is set (redact internal hostnames when sharing publicly).
-3. Start: `aqua-tokens otel-poc --listen --output ./api-request.json`
-4. Merge the Aqua OTel `env` block from `aqua-tokens otel-poc --print-config` into `~/.claude/settings.json` (keep any required local/company vars).
+3. Start: `npm run otel-poc -- --listen --output ./api-request.json`
+4. Merge the Aqua OTel `env` block from `npm run otel-poc -- --print-config` into `~/.claude/settings.json` (keep any required local/company vars).
 5. Do not enable `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_CONTENT`, or `OTEL_LOG_RAW_API_BODIES`.
 6. After Claude restart, send 1–2 normal prompts; wait for flush.
 7. Summarize captured `claude_code.api_request` fields and totals (counted vs cache).

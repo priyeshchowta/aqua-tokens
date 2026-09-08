@@ -35,12 +35,12 @@ Put this in `~/.claude/settings.json` (or export the same variables in the shell
 }
 ```
 
-Print the same block with `aqua-tokens otel-poc --print-config`.
+Print the same block with `npm run otel-poc -- --print-config`.
 
 Then:
 
 ```bash
-aqua-tokens otel-poc --listen
+npm run otel-poc -- --listen
 ```
 
 The receiver binds **127.0.0.1 only**, accepts OTLP HTTP JSON `POST /v1/logs`, and appends **sanitized** `claude_code.api_request` usage fields to `~/.aqua-tokens/otel-poc.jsonl` (never the raw OTLP payload). Optional `--output ./api-request.json` writes the latest event as pretty JSON for fixture sharing. Protobuf/gRPC is rejected with 415; this POC does not speak those protocols.
@@ -74,7 +74,7 @@ Each event is **one API request**, not a session rollup. Token counts are the us
 ### Capture one event
 
 ```bash
-aqua-tokens otel-poc --file tests/fixtures/otel/api-request.json
+npm run otel-poc -- --file tests/fixtures/otel/api-request.json
 ```
 
 prints:

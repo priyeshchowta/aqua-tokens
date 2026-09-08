@@ -20,7 +20,7 @@ Also see: `docs/live-verification.md` (checklist + results table).
 
 - Node.js **≥ 22.5**
 - Claude Code installed and logged in
-- Access to the private repo `priyeshchowta/aqua-tokens`
+- This repository cloned locally
 
 ---
 
@@ -160,12 +160,12 @@ Do **not** share:
 
 ## Definition of done
 
-For this project, the company laptop (often LiteLLM) is the **final** live test machine. Results are **accepted with caveats** — pinch of salt, not first-party Claude UI parity.
+Project baseline: live OTel is **accepted with caveats** (see `docs/live-verification.md`) — pinch of salt, not first-party Claude UI parity.
 
-We treat live OTel as good enough to trust transport/parse when:
+A useful re-check should:
 
-1. A real `claude_code.api_request` arrived on localhost.
-2. Environment/proxy caveats are documented.
-3. `docs/live-verification.md` records findings honestly.
+1. Receive a real `claude_code.api_request` on localhost.
+2. Document environment/proxy caveats (redact internal hostnames when sharing publicly).
+3. Update `docs/live-verification.md` only when findings change.
 
-We still **do not** auto-wire OTel into `aqua-tokens report` from that alone. JSONL remains the report source until a deliberate product decision says otherwise.
+We still **do not** auto-wire OTel into `aqua-tokens report` from a re-check alone. JSONL remains the report source until a deliberate product decision says otherwise.

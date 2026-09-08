@@ -8,7 +8,30 @@ Aqua is built around a simple idea: **AI usage should be visible and accountable
 
 No Aqua server. No Aqua account. No hosted dashboard. Aqua stores its usage history locally on your machine in `~/.aqua-tokens/history.sqlite`.
 
-> **Status:** Early development. Claude Code OpenTelemetry support is available for testing, but live usage verification is still pending.
+> **Status:** Early development. `report` uses Claude Code JSONL today. Local OpenTelemetry (`otel-poc`) is a verified proof of concept **with caveats** — not yet the `report` source. See `docs/live-verification.md`.
+
+## ⚠️ Known accuracy limitations
+
+Read this before trusting any number `aqua-tokens` prints. This is not boilerplate.
+
+- **Cache tokens are excluded from the water estimate, and this can be a huge undercount.** Aqua only counts `input_tokens + output_tokens`. In real-session testing against a live Claude Code agentic session, cache tokens (`cache_read_tokens` + `cache_creation_tokens`) made up **~99% of total tokens processed** (25,772 counted vs. 3,461,495 excluded, out of 3,487,267 total). That means the reported water figure can undercount the actual footprint of a cache-heavy session by **up to ~135x**. See Finding 3 in `docs/live-verification.md` for the raw numbers.
+- **The JSONL parser's token counts have not been verified against Claude Code's own usage UI on a direct, non-proxied Anthropic setup.** All live verification to date was captured through a corporate LLM proxy (`ANTHROPIC_BASE_URL` set), and a first-party Claude usage-UI comparison was not available in that environment. Treat `report`'s numbers as internally consistent, not as validated against Claude's own accounting, until someone runs the direct-Anthropic comparison in `docs/verify-with-claude-code.md`.
+- **Live OTel capture works, but is not wired into `report`.** The OpenTelemetry proof of concept (`aqua-tokens otel-poc`) has verified transport and parsing on real `claude_code.api_request` events. It is **not** more authoritative than JSONL — it has the same cache-exclusion gap, plus its own open issues (missing `request_id`, quantized `input_tokens` under cache-heavy sessions). Do not treat `otel-poc` output as a corrected or "true" number relative to `report`.
+
+We'd rather say this loudly than let a clean-looking table imply more certainty than the underlying data supports. See [Contributing](#contributing) for how you can help close these gaps.
+
+## Why we show a range, not a single number
+
+Water-per-token estimates carry genuine **30x+ uncertainty** depending on:
+
+- **scope** — on-site cooling only vs. on-site cooling + electricity-generation water;
+- **model** — different models and hardware have different per-query power/water profiles;
+- **query complexity** — a short lookup and a long agentic tool-use turn are not the same query;
+- **data center location** — cooling technology, climate, and the local electricity/water mix vary widely by region.
+
+This range comes directly from the cited research: Li, P., Yang, J., Islam, M.A., Ren, S. "Making AI Less Thirsty: Uncovering and Addressing the Secret Water Footprint of AI Models." UC Riverside, 2023 / Commun. ACM 2024. [arXiv:2304.03271](https://arxiv.org/abs/2304.03271).
+
+A single point estimate (e.g. "this session used 42 mL of water") would be **false precision** — it would imply a level of confidence the underlying science doesn't support. That's why every `aqua-tokens` report shows a labeled, scoped range with a citation instead of a single number.
 
 ## Why Aqua?
 
@@ -82,6 +105,7 @@ $ aqua-tokens report
 
 🌊 Lifetime: 1.2M tokens · 12–60 L, scope-1+2
   Source: Claude Code
+  Note: cache tokens excluded from this estimate — see README for why this may undercount.
 
   Period      Tokens  Water (scope-1+2)
   ---------  ------  -----------------
@@ -107,7 +131,7 @@ The range is intentional. Aqua does not present a single precise-looking number 
 
 | Role | Source |
 |---|---|
-| Intended primary source | OpenTelemetry `claude_code.api_request` — live verification pending |
+| Intended primary source | OpenTelemetry `claude_code.api_request` — POC verified with caveats |
 | Current report source / fallback | Claude Code JSONL `message.usage` |
 
 The OpenTelemetry implementation is currently a local proof of concept:
@@ -118,7 +142,7 @@ aqua-tokens otel-poc
 
 It is **not yet the production source for `report`**.
 
-Today, `aqua-tokens report` reads Claude Code JSONL usage data. OTel is the intended primary usage path once live verification is complete.
+Today, `aqua-tokens report` reads Claude Code JSONL usage data. Live OTel transport has been verified with caveats (`docs/live-verification.md`); OTel is not wired into `report` yet.
 
 Other AI platforms are out of scope for v1.
 
@@ -277,17 +301,15 @@ Only the fields required for usage accounting should be retained or shared.
 
 ### 7. Live verification
 
-Live verification is still pending.
+Live OTel verification is **accepted with caveats**.
 
-A real Claude Code session needs to produce a `claude_code.api_request` that can be inspected and compared against an appropriate Claude usage reference.
-
-Record the result in:
+Real `claude_code.api_request` events were received and parsed on localhost. First-party Claude usage-UI comparison was not available in the verification environment (proxied session). Details and findings:
 
 ```text
 docs/live-verification.md
 ```
 
-Passing automated or synthetic tests does **not** constitute live verification.
+Passing automated or synthetic tests alone does **not** constitute live verification. Independent re-checks are welcome via `docs/verify-with-claude-code.md`.
 
 ### Privacy when sharing test data
 
@@ -355,9 +377,10 @@ Aqua is intentionally transparent about what it does not currently know.
 
 ### Usage data
 
-- Live Claude Code OTel verification is **pending**.
-- `report` currently uses Claude Code JSONL until OTel is verified and wired into `report`.
+- Live Claude Code OTel verification is **accepted with caveats** (transport proven; usage-UI parity not proven).
+- `report` currently uses Claude Code JSONL; OTel is not wired into `report` yet.
 - JSONL should not be treated as an authoritative provider billing record.
+- Cache-heavy sessions can make counted `input + output` a small fraction of processed tokens (cache excluded by methodology).
 - Statusline context-window fields are not treated as a usage source.
 
 ### Environmental estimates
@@ -384,12 +407,12 @@ Aqua is intentionally transparent about what it does not currently know.
 | SQLite persistence | Implemented |
 | Water calculation | Implemented |
 | End-to-end synthetic flow | Covered by tests |
-| Live Claude Code OTel | **Pending** |
+| Live Claude Code OTel | **Accepted with caveats** |
 | Background monitoring | Not implemented |
 | Notifications | Not implemented |
 | Other AI platforms | Out of scope for v1 |
 
-> **Live Claude Code OTel verification is pending** until a real Claude Code session produces a `claude_code.api_request` that can be inspected and compared with an appropriate Claude usage reference.
+> **Live Claude Code OTel** transport/parse is verified on real events, with caveats (proxied environment; no first-party usage-UI comparison; `request_id` missing; cache-heavy accounting gaps). See `docs/live-verification.md`. OTel is not the `report` source yet.
 
 For more detail, see:
 

@@ -10,7 +10,7 @@ No Aqua server, no Aqua accounts, no hosted dashboard. Totals are labeled **requ
 
 ---
 
-## Current state (2026-08-27)
+## Current state (2026-09-08)
 
 | Layer | Status |
 |-------|--------|
@@ -18,7 +18,7 @@ No Aqua server, no Aqua accounts, no hosted dashboard. Totals are labeled **requ
 | Automated tests / `npm run verify` | Pass offline |
 | Synthetic OTel → UsageEvent → SQLite → report | Covered |
 | OTel POC (`otel-poc`) | Loopback `127.0.0.1:4318`; sanitized export |
-| Live Claude `api_request` vs Claude usage UI | **Accepted with caveats** (company laptop / LiteLLM; pinch of salt — see `docs/live-verification.md`) |
+| Live Claude `api_request` | **Accepted with caveats** (transport verified; usage-UI parity not proven — see `docs/live-verification.md`) |
 | Claude JSONL → `report` | Current report source / fallback |
 | Cursor | **Out of scope for v1** (removed from product surface and production collect path) |
 | Background daemon / notifications / `share` | **Not implemented** |
@@ -28,7 +28,7 @@ No Aqua server, no Aqua accounts, no hosted dashboard. Totals are labeled **requ
 ```
 Claude Code
     ↓
-OpenTelemetry api_request   ← primary candidate (live verification pending)
+OpenTelemetry api_request   ← primary candidate (POC; not wired into report yet)
     ↓
 Aqua usage ingestion
     ↓
@@ -37,7 +37,7 @@ UsageEvent → SQLite (insert-if-new)
 aggregation → water calculation → report
 ```
 
-**Fallback / current compatibility:** Claude Code JSONL `message.usage` (what `report` reads today). Do not claim JSONL is authoritative billed usage unless verified.
+**Current `report` path:** Claude Code JSONL `message.usage`. Do not claim JSONL is authoritative billed usage.
 
 ### Done
 
@@ -51,9 +51,9 @@ aggregation → water calculation → report
 
 ### Live verification decision
 
-Company laptop (LiteLLM) is the **final** live test machine — no personal/direct-Anthropic retest planned. Transport/parse verified; token-field fidelity vs Claude UI not proven. Keep JSONL as `report`; OTel stays POC. Details: `docs/live-verification.md`.
+Live OTel is **accepted with caveats**: transport/parse verified on real events in a proxied environment; first-party Claude usage-UI comparison was not available. Keep JSONL as `report`; OTel stays POC. Details: `docs/live-verification.md`.
 
-Do **not** start the daemon, notifications, or share cards while OTel is only caveated-POC.
+Do **not** start the daemon, notifications, or share cards while OTel is only caveated-POC. Independent re-checks welcome.
 
 ### Known limitations
 

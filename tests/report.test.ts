@@ -60,6 +60,7 @@ describe("buildReport", () => {
     expect(text).toContain("per-machine");
     expect(text).toMatch(/Lifetime: .* tokens · .* mL, scope-1\+2/);
     expect(text).toContain("API-request input + output only");
+    expect(text).toContain("cache tokens excluded from this estimate");
   });
 
   it("supports scope-1 range", () => {

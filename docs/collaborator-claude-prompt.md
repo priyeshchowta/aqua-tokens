@@ -1,45 +1,41 @@
-# Paste this into Claude Code (company laptop = final test machine)
+# Paste into Claude Code — optional live re-check
 
-Copy everything below the line into Claude Code.
+Copy everything below the line into Claude Code if you want to re-verify Aqua's local OTel POC on your machine.
 
 ---
 
-You are helping with a **final caveated live check** of `aqua-tokens` on a **company laptop**.
-
-## Important policy
-
-- This company laptop (often LiteLLM / corporate proxy) is the **last** live test machine we will use.
-- Do **not** ask for a personal laptop or direct-Anthropic-only setup.
-- Take results with a **pinch of salt** and document caveats honestly.
-- Prefer deliverables as **chat/markdown text** (company file DRM previously made JSON attachments unreadable).
+You are helping re-verify the local `aqua-tokens` package against a real Claude Code OpenTelemetry session.
 
 ## Context
 
-- `aqua-tokens report` (JSONL) already works.
-- Prior OTel run: transport worked; `request_id` null; `input_tokens` often `2`; cache tokens huge.
-- Repo docs already accept this environment with caveats (`docs/live-verification.md`). Your job is to refresh/confirm artifacts if needed, not to unblock a non-proxied retest.
+- Repo root should be the `aqua-tokens` clone.
+- `aqua-tokens report` (JSONL) is the current report path and already works.
+- Live OTel transport was previously verified with caveats (`docs/live-verification.md`). OTel is **not** wired into `report` yet.
+- If this machine uses a corporate proxy / custom `ANTHROPIC_BASE_URL`, document that honestly. Do not bypass IT policy.
+- Prefer deliverables as chat/markdown text if file attachments may be DRM-encrypted.
 
 ## Procedure
 
 1. From repo root: `npm install && npm run verify && npm run build && npm link`
-2. Document environment: `claude --version`, OS, whether `ANTHROPIC_BASE_URL` / LiteLLM is set (do not bypass IT).
+2. Document environment: `claude --version`, OS, whether `ANTHROPIC_BASE_URL` is set (redact internal hostnames when sharing publicly).
 3. Start: `aqua-tokens otel-poc --listen --output ./api-request.json`
-4. Ensure Claude `~/.claude/settings.json` `env` includes the Aqua OTel block from `aqua-tokens otel-poc --print-config` (keep required company vars).
+4. Merge the Aqua OTel `env` block from `aqua-tokens otel-poc --print-config` into `~/.claude/settings.json` (keep any required local/company vars).
 5. Do not enable `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_CONTENT`, or `OTEL_LOG_RAW_API_BODIES`.
 6. After Claude restart, send 1–2 normal prompts; wait for flush.
 7. Summarize captured `claude_code.api_request` fields and totals (counted vs cache).
-8. Update `docs/live-verification.md` only if new evidence changes findings; keep status as accepted-with-caveats unless something clearly regresses.
-9. Paste a redacted event JSON in chat (`request_id` / `session_id` → `"REDACTED"`).
+8. Update `docs/live-verification.md` only if new evidence changes findings.
+9. Paste a redacted event JSON in chat (`request_id` / `session_id` → `"REDACTED"`; no prompts/tools/raw bodies).
 
 ## Deliverables
 
-- Short caveated summary in chat
+- Short caveated summary
 - Redacted JSON pasted as text
-- Optional PR only if docs need a factual refresh
+- Optional PR if docs need a factual refresh
 
 ## Do not
 
-- Bypass company proxy/security
-- Wire OTel into `report`
+- Bypass security / proxy controls
+- Wire OTel into `report` unless maintainers ask
 - Build daemon / notifications / share
-- Claim first-party Claude usage-UI parity
+- Claim first-party Claude usage-UI parity without evidence
+- Publish internal hostnames, credentials, prompts, or raw OTLP payloads

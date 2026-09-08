@@ -4,7 +4,7 @@ Investigation notes for aqua-tokens v1 (**Claude Code only**). **Accuracy first,
 
 **v1 platform scope:** Claude Code. Other editors/platforms are out of scope.
 
-Report still reads Claude Code **JSONL**. OpenTelemetry is a proven local collector path, not yet the `report` source, because a live Claude Code process has not been captured for definition-of-done.
+Report still reads Claude Code **JSONL**. OpenTelemetry is a proven local collector path (live transport verified with caveats — see `docs/live-verification.md`), not yet the `report` source.
 
 **Source priority:**
 
@@ -91,7 +91,7 @@ cost_usd 0.0123
 timestamp/session_id 2026-08-14T10:00:01.000Z / sess-otel-1
 ```
 
-The same sanitized shape is accepted from a live Claude Code exporter via `--listen`. A live Claude Code session has **not** yet been captured for definition-of-done (see `docs/live-verification.md`). The receiver and parser are covered by tests, including a loopback HTTP POST and a full OTel → SQLite → report e2e fixture test.
+The same sanitized shape is accepted from a live Claude Code exporter via `--listen`. Live capture is **accepted with caveats** (see `docs/live-verification.md`). The receiver and parser are also covered by tests, including a loopback HTTP POST and a full OTel → SQLite → report e2e fixture test.
 
 ---
 

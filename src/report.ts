@@ -57,6 +57,7 @@ export function formatReport(report: ReportData): string {
   const lines = [
     headline,
     `  Source: ${report.source}`,
+    "  Note: cache tokens excluded from this estimate — see README for why this may undercount.",
     "",
     header,
     rule,
@@ -99,6 +100,8 @@ export function reportToJson(report: ReportData): unknown {
     caveat: report.caveat,
     token_accounting: report.tokenAccounting,
     citation: report.citation,
+    cache_exclusion_note:
+      "Cache tokens excluded from this estimate — see README for why this may undercount.",
     warnings: report.warnings,
   };
 }

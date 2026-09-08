@@ -41,14 +41,14 @@ Implemented:
 - Synthetic OTel → SQLite → report e2e test
 - Tests (`npm run verify` = test + build)
 
-**Not started** (wait until live Claude Code `api_request` is captured — see `docs/live-verification.md`):
+**Not started** (still gated while OTel is caveated-POC — see `docs/live-verification.md`):
 
 - Background daemon / watchers
 - `aqua-tokens start|stop|status`
 - Notifications
 - `aqua-tokens share`
 
-Do not build the daemon yet. Live Claude verification remains **pending**.
+Do not build the daemon yet. Live OTel is **accepted with caveats**; `report` remains JSONL.
 
 ---
 

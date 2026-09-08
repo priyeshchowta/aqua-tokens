@@ -169,3 +169,37 @@ A useful re-check should:
 3. Update `docs/live-verification.md` only when findings change.
 
 We still **do not** auto-wire OTel into `aqua-tokens report` from a re-check alone. JSONL remains the report source until a deliberate product decision says otherwise.
+
+---
+
+## Appendix: paste-in prompt for an AI coding agent
+
+If you'd rather hand this whole checklist to an AI coding agent (e.g. Claude Code itself) running against your own machine instead of following the steps by hand, copy everything below the line into that agent:
+
+---
+
+You are helping re-verify the local `aqua-tokens` package against a real Claude Code OpenTelemetry session.
+
+**Context:**
+
+- Repo root should be the `aqua-tokens` clone.
+- `aqua-tokens report` (JSONL) is the current report path and already works.
+- Live OTel transport was previously verified with caveats (`docs/live-verification.md`). OTel is **not** wired into `report` yet.
+- If this machine uses a corporate proxy / custom `ANTHROPIC_BASE_URL`, document that honestly. Do not bypass IT policy.
+- Prefer deliverables as chat/markdown text if file attachments may be DRM-encrypted.
+
+**Procedure:**
+
+1. From repo root: `npm install && npm run verify && npm run build && npm link`
+2. Document environment: `claude --version`, OS, whether `ANTHROPIC_BASE_URL` is set (redact internal hostnames when sharing publicly).
+3. Start: `aqua-tokens otel-poc --listen --output ./api-request.json`
+4. Merge the Aqua OTel `env` block from `aqua-tokens otel-poc --print-config` into `~/.claude/settings.json` (keep any required local/company vars).
+5. Do not enable `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_CONTENT`, or `OTEL_LOG_RAW_API_BODIES`.
+6. After Claude restart, send 1–2 normal prompts; wait for flush.
+7. Summarize captured `claude_code.api_request` fields and totals (counted vs cache).
+8. Update `docs/live-verification.md` only if new evidence changes findings.
+9. Paste a redacted event JSON in chat (`request_id` / `session_id` → `"REDACTED"`; no prompts/tools/raw bodies).
+
+**Deliverables:** a short caveated summary, the redacted JSON pasted as text, and optionally a PR if docs need a factual refresh.
+
+**Do not:** bypass security/proxy controls; wire OTel into `report` unless maintainers ask; build daemon/notifications/share; claim first-party Claude usage-UI parity without evidence; publish internal hostnames, credentials, prompts, or raw OTLP payloads.
